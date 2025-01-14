@@ -7,29 +7,31 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.lifecycle.ViewModelProvider;
 
 import org.nuclearfog.twidda.R;
 import org.nuclearfog.twidda.backend.utils.AppStyles;
-import org.nuclearfog.twidda.database.GlobalSettings;
+import org.nuclearfog.twidda.config.GlobalSettings;
 import org.nuclearfog.twidda.ui.fragments.AccountFragment;
 import org.nuclearfog.twidda.ui.fragments.ListFragment;
+
+import java.io.Serializable;
 
 /**
  * account manager activity
  *
  * @author nuclearfog
  */
-public class AccountActivity extends AppCompatActivity {
-
-	/**
-	 * request code to start {@link LoginActivity}
-	 */
-	private static final int REQUEST_LOGIN = 0xDF14;
+public class AccountActivity extends AppCompatActivity implements ActivityResultCallback<ActivityResult> {
 
 	/**
 	 * return code to notify that a new account was selected
@@ -42,14 +44,24 @@ public class AccountActivity extends AppCompatActivity {
 	public static final int RETURN_SETTINGS_CHANGED = 0x336;
 
 	/**
+	 * key used to return selected login account
+	 * value type is {@link org.nuclearfog.twidda.model.Account}
+	 */
+	public static final String RETURN_ACCOUNT = "account";
+
+	/**
 	 * key to disable account selector option from menu
 	 * value type is Boolean
 	 */
 	public static final String KEY_DISABLE_SELECTOR = "disable-acc-manager";
 
+	private ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this);
+
 	private GlobalSettings settings;
-	private ListFragment fragment;
-	private Toolbar tool;
+
+	private ViewGroup root;
+
+	private ListFragment.ItemViewModel viewModel;
 
 
 	@Override
@@ -62,19 +74,20 @@ public class AccountActivity extends AppCompatActivity {
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.page_fragment);
-		ViewGroup root = findViewById(R.id.fragment_root);
-		tool = findViewById(R.id.fragment_toolbar);
-		fragment = new AccountFragment();
+		Toolbar tool = findViewById(R.id.page_fragment_toolbar);
+		root = findViewById(R.id.page_fragment_root);
+		viewModel = new ViewModelProvider(this).get(ListFragment.ItemViewModel.class);
 
-		FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
-		fragmentTransaction.replace(R.id.fragment_container, fragment);
-		fragmentTransaction.commit();
-
-		tool.setTitle(R.string.account_page);
+		if (savedInstanceState == null) {
+			FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+			fragmentTransaction.replace(R.id.page_fragment_container, AccountFragment.class, null);
+			fragmentTransaction.commit();
+		}
+		tool.setTitle(R.string.menu_select_account);
 		setSupportActionBar(tool);
 
-		settings = GlobalSettings.getInstance(this);
-		AppStyles.setTheme(root, settings.getBackgroundColor());
+		settings = GlobalSettings.get(this);
+		AppStyles.setTheme(root);
 	}
 
 
@@ -86,7 +99,7 @@ public class AccountActivity extends AppCompatActivity {
 		m.findItem(R.id.action_add_account).setVisible(!disableSelector);
 		// theme icons
 		AppStyles.setMenuIconColor(m, settings.getIconColor());
-		return super.onCreateOptionsMenu(m);
+		return true;
 	}
 
 
@@ -95,28 +108,32 @@ public class AccountActivity extends AppCompatActivity {
 		if (item.getItemId() == R.id.action_add_account) {
 			// open login page to add new account
 			Intent loginIntent = new Intent(this, LoginActivity.class);
-			startActivityForResult(loginIntent, REQUEST_LOGIN);
+			activityResultLauncher.launch(loginIntent);
 			return true;
 		}
-		return super.onOptionsItemSelected(item);
+		return false;
 	}
 
 
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if (requestCode == REQUEST_LOGIN) {
-			// new account registered, reload fragment
-			if (resultCode == LoginActivity.RETURN_LOGIN_SUCCESSFUL) {
-				setResult(AccountActivity.RETURN_ACCOUNT_CHANGED);
-				fragment.reset();
-			}
-			// check if setting page was opened and reload theme
-			else if (resultCode == LoginActivity.RETURN_SETTINGS_CHANGED) {
-				AppStyles.setTheme(tool, settings.getBackgroundColor());
+	public void onActivityResult(ActivityResult result) {
+		switch (result.getResultCode()) {
+			case LoginActivity.RETURN_LOGIN_SUCCESSFUL:
+				Intent intent = new Intent();
+				if (result.getData() != null) {
+					Serializable data = result.getData().getSerializableExtra(LoginActivity.RETURN_ACCOUNT);
+					intent.putExtra(RETURN_ACCOUNT, data);
+				}
+				// new account registered, reload fragment
+				setResult(AccountActivity.RETURN_ACCOUNT_CHANGED, intent);
+				viewModel.notify(ListFragment.NOTIFY_CHANGED);
+				break;
+
+			case LoginActivity.RETURN_SETTINGS_CHANGED:
+				AppStyles.setTheme(root);
 				setResult(RETURN_SETTINGS_CHANGED);
-				fragment.reset();
-			}
+				viewModel.notify(ListFragment.NOTIFY_CHANGED);
+				break;
 		}
 	}
 }

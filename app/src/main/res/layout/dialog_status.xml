@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/dialog_status_root"
+	android:orientation="vertical"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:padding="@dimen/dialog_status_layout_padding">
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="@string/dialog_status_title"
+		android:textSize="@dimen/dialog_status_textsize_title"
+		android:layout_marginBottom="@dimen/dialog_status_layout_margins"
+		android:lines="1" />
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:layout_marginBottom="@dimen/dialog_status_layout_margins"
+		android:gravity="center_vertical">
+
+		<com.kyleduo.switchbutton.SwitchButton
+			android:id="@+id/dialog_status_sensitive"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginEnd="@dimen/dialog_status_layout_margins" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/dialog_status_sensitive"
+			android:lines="1"
+			android:textSize="@dimen/dialog_status_textsize_small" />
+
+	</LinearLayout>
+
+	<LinearLayout
+		android:id="@+id/dialog_status_spoiler_container"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:layout_marginBottom="@dimen/dialog_status_layout_margins"
+		android:gravity="center_vertical">
+
+		<com.kyleduo.switchbutton.SwitchButton
+			android:id="@+id/dialog_status_spoiler"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginEnd="@dimen/dialog_status_layout_margins" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/dialog_status_spoiler"
+			android:textSize="@dimen/dialog_status_textsize_small"
+			android:lines="1" />
+	</LinearLayout>
+
+	<LinearLayout
+		android:id="@+id/dialog_status_visibility_container"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:layout_marginBottom="@dimen/dialog_status_layout_margins"
+		android:gravity="center_vertical">
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginEnd="@dimen/dialog_status_layout_margins"
+			android:lines="1"
+			android:text="@string/dialog_status_visibility"
+			android:textSize="@dimen/dialog_status_textsize_small" />
+
+		<Spinner
+			android:id="@+id/dialog_status_visibility"
+			android:layout_width="wrap_content"
+			android:layout_height="@dimen/dialog_status_dropdown_height" />
+
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:layout_marginBottom="@dimen/dialog_status_layout_margins">
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/dialog_status_language"
+			android:layout_marginEnd="@dimen/dialog_status_layout_margins"
+			android:textSize="@dimen/dialog_status_textsize_small"
+			android:lines="1" />
+
+		<Spinner
+			android:id="@+id/dialog_status_language"
+			android:layout_width="wrap_content"
+			android:layout_height="@dimen/dialog_status_dropdown_height" />
+
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical">
+
+		<Button
+			android:id="@+id/dialog_status_time_picker"
+			android:layout_width="wrap_content"
+			android:layout_height="@dimen/dialog_status_button_height"
+			android:lines="1"
+			android:text="@string/dialog_status_schedule_set"
+			android:padding="@dimen/dialog_status_button_padding"
+			style="@style/FeedbackButton" />
+
+		<TextView
+			android:id="@+id/dialog_status_time_set"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:lines="1"
+			android:textSize="@dimen/dialog_status_textsize_default"
+			android:layout_marginStart="@dimen/dialog_status_layout_margins"
+			android:layout_marginEnd="@dimen/dialog_status_layout_margins" />
+
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="end">
+
+		<Button
+			android:id="@+id/dialog_status_cancel"
+			android:layout_width="wrap_content"
+			android:layout_height="@dimen/dialog_status_button_height"
+			android:lines="1"
+			android:text="@android:string/cancel"
+			android:padding="@dimen/dialog_status_button_padding"
+			android:layout_margin="@dimen/dialog_status_layout_margins"
+			style="@style/FeedbackButton" />
+
+		<Button
+			android:id="@+id/dialog_status_ok"
+			android:layout_width="wrap_content"
+			android:layout_height="@dimen/dialog_status_button_height"
+			android:lines="1"
+			android:text="@android:string/ok"
+			android:padding="@dimen/dialog_status_button_padding"
+			android:layout_margin="@dimen/dialog_status_layout_margins"
+			style="@style/FeedbackButton" />
+
+	</LinearLayout>
+
+</LinearLayout>

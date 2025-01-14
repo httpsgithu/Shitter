@@ -1,6 +1,8 @@
 package org.nuclearfog.twidda.model;
 
-import androidx.annotation.Nullable;
+import org.nuclearfog.twidda.config.Configuration;
+
+import java.io.Serializable;
 
 /**
  * interface of account implementations
@@ -8,7 +10,13 @@ import androidx.annotation.Nullable;
  *
  * @author nuclearfog
  */
-public interface Account {
+public interface Account extends Serializable {
+
+	/**
+	 * API ID used for Mastodon accounts
+	 * used in database tables!
+	 */
+	int API_MASTODON = 2;
 
 	/**
 	 * @return ID of the account (user ID)
@@ -18,21 +26,50 @@ public interface Account {
 	/**
 	 * @return date of the first login
 	 */
-	long getLoginDate();
+	long getTimestamp();
 
 	/**
-	 * @return user information of the account
+	 * @return screen name of the account profile
 	 */
-	@Nullable
-	User getUser();
+	String getScreenname();
 
 	/**
-	 * @return first access token of the user
+	 * @return profile image of the account profile
 	 */
-	String getAccessToken();
+	String getProfileImageUrl();
 
 	/**
-	 * @return second access token of the user
+	 * @return API key assosiated with an account
 	 */
-	String getTokenSecret();
+	String getConsumerToken();
+
+	/**
+	 * @return API secret key associated with an account
+	 */
+	String getConsumerSecret();
+
+	/**
+	 * @return oauth token
+	 */
+	String getOauthToken();
+
+	/**
+	 * @return oauth secret
+	 */
+	String getOauthSecret();
+
+	/**
+	 * @return bearer token
+	 */
+	String getBearerToken();
+
+	/**
+	 * @return hostname of the social network
+	 */
+	String getHostname();
+
+	/**
+	 * @return login configuration
+	 */
+	Configuration getConfiguration();
 }

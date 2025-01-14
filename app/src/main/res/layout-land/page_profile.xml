@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/page_profile_root"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:baselineAligned="false"
+	android:fitsSystemWindows="true"
+	android:orientation="horizontal"
+	tools:context=".ui.activities.ProfileActivity">
+
+	<androidx.constraintlayout.widget.ConstraintLayout
+		android:id="@+id/page_profile_header"
+		android:layout_width="0dp"
+		android:layout_height="match_parent"
+		android:layout_weight="1">
+
+		<ImageView
+			android:id="@+id/page_profile_banner"
+			android:layout_width="0dp"
+			android:layout_height="0dp"
+			android:adjustViewBounds="true"
+			android:contentDescription="@string/profile_banner"
+			android:scaleType="centerCrop"
+			app:layout_constraintDimensionRatio="3.0"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintTop_toTopOf="parent" />
+
+		<ImageView
+			android:id="@+id/page_profile_toolbar_background"
+			android:layout_width="0dp"
+			android:layout_height="@dimen/toolbar_height_landscape"
+			android:scaleType="centerCrop"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			tools:ignore="ContentDescription" />
+
+		<androidx.appcompat.widget.Toolbar
+			android:id="@+id/page_profile_toolbar"
+			android:layout_width="0dp"
+			android:layout_height="@dimen/toolbar_height_landscape"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+		<ImageView
+			android:id="@+id/page_profile_image"
+			android:layout_width="@dimen/profile_image_size"
+			android:layout_height="@dimen/profile_image_size"
+			android:layout_marginStart="@dimen/profile_image_padding_left"
+			android:layout_marginEnd="@dimen/profile_username_margin"
+			android:contentDescription="@string/profile_image"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_banner"
+			app:layout_constraintBottom_toBottomOf="@id/page_profile_banner"
+			app:layout_constraintEnd_toStartOf="@id/page_profile_image_barrier" />
+
+		<androidx.constraintlayout.widget.Barrier
+			android:id="@+id/page_profile_image_barrier"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:barrierDirection="end" />
+
+		<TextView
+			android:id="@+id/page_profile_username"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_icon_margin"
+			android:layout_marginEnd="@dimen/profile_username_margin"
+			android:drawablePadding="@dimen/profile_padding_drawable"
+			android:lines="1"
+			android:padding="@dimen/profile_tv_background_padding"
+			android:textSize="@dimen/profile_textsize_big"
+			app:layout_constrainedWidth="true"
+			app:layout_constraintStart_toEndOf="@id/page_profile_image_barrier"
+			app:layout_constraintBottom_toBottomOf="@id/page_profile_banner"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintHorizontal_bias="0.0" />
+
+
+		<ImageView
+			android:id="@+id/page_profile_locked"
+			android:layout_width="@dimen/profile_icon_size_big"
+			android:layout_height="@dimen/profile_icon_size_big"
+			android:src="@drawable/lock"
+			android:scaleType="fitXY"
+			android:contentDescription="@string/profile_description_locked"
+			app:layout_constraintStart_toEndOf="@id/page_profile_image_barrier"
+			app:layout_constraintTop_toTopOf="@id/page_profile_screenname"
+			app:layout_constraintBottom_toBottomOf="@id/page_profile_screenname" />
+
+		<ImageView
+			android:id="@+id/page_profile_bot"
+			android:layout_width="@dimen/profile_icon_size_big"
+			android:layout_height="@dimen/profile_icon_size_big"
+			android:src="@drawable/bot"
+			android:scaleType="fitXY"
+			android:contentDescription="@string/profile_description_bot"
+			app:layout_constraintStart_toEndOf="@id/page_profile_locked"
+			app:layout_constraintTop_toTopOf="@id/page_profile_screenname"
+			app:layout_constraintBottom_toBottomOf="@id/page_profile_screenname" />
+
+		<ImageView
+			android:id="@+id/page_profile_group"
+			android:layout_width="@dimen/profile_icon_size_big"
+			android:layout_height="@dimen/profile_icon_size_big"
+			android:src="@drawable/group"
+			android:scaleType="fitXY"
+			android:contentDescription="@string/profile_description_group"
+			app:layout_constraintStart_toEndOf="@id/page_profile_bot"
+			app:layout_constraintTop_toTopOf="@id/page_profile_screenname"
+			app:layout_constraintBottom_toBottomOf="@id/page_profile_screenname" />
+
+		<TextView
+			android:id="@+id/page_profile_screenname"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_icon_margin"
+			android:layout_marginEnd="@dimen/profile_username_margin"
+			android:lines="1"
+			android:padding="@dimen/profile_tv_background_padding"
+			android:textSize="@dimen/profile_textsize_big"
+			app:layout_constrainedWidth="true"
+			app:layout_constraintHorizontal_bias="0.0"
+			app:layout_constraintHorizontal_chainStyle="packed"
+			app:layout_constraintStart_toEndOf="@id/page_profile_group"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_username"
+			app:layout_constraintEnd_toEndOf="@id/page_profile_followback" />
+
+		<TextView
+			android:id="@+id/page_profile_followback"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_tv_margin"
+			android:drawablePadding="@dimen/profile_padding_drawable"
+			android:lines="1"
+			android:padding="@dimen/profile_tv_background_padding"
+			android:text="@string/follows_you"
+			android:textSize="@dimen/profile_textsize_big"
+			android:visibility="invisible"
+			app:layout_constrainedWidth="true"
+			app:layout_constraintHorizontal_chainStyle="packed"
+			app:layout_constraintStart_toEndOf="@id/page_profile_screenname"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_username" />
+
+		<Button
+			android:id="@+id/page_profile_following"
+			style="@style/FeedbackButton"
+			android:layout_width="0dp"
+			android:layout_height="@dimen/profile_button_height"
+			android:paddingLeft="@dimen/profile_button_background_padding"
+			android:paddingRight="@dimen/profile_button_background_padding"
+			android:textSize="@dimen/profile_textsize_big"
+			android:visibility="invisible"
+			app:layout_constraintHorizontal_weight="1"
+			app:layout_constraintStart_toEndOf="@id/page_profile_image_barrier"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_screenname"
+			app:layout_constraintEnd_toStartOf="@id/page_profile_follower" />
+
+		<Button
+			android:id="@+id/page_profile_follower"
+			style="@style/FeedbackButton"
+			android:layout_width="0dp"
+			android:layout_height="@dimen/profile_button_height"
+			android:layout_marginStart="@dimen/profile_button_margin"
+			android:layout_marginEnd="@dimen/profile_button_margin"
+			android:paddingLeft="@dimen/profile_button_background_padding"
+			android:paddingRight="@dimen/profile_button_background_padding"
+			android:textSize="@dimen/profile_textsize_big"
+			android:visibility="invisible"
+			app:layout_constraintHorizontal_weight="1"
+			app:layout_constraintStart_toEndOf="@id/page_profile_following"
+			app:layout_constraintTop_toTopOf="@id/page_profile_following"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+		<androidx.constraintlayout.widget.Barrier
+			android:id="@+id/page_profile_button_barrier"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:barrierDirection="bottom"
+			app:constraint_referenced_ids="page_profile_following,page_profile_follower,page_profile_image" />
+
+		<TextView
+			android:id="@+id/page_profile_description"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_tv_margin"
+			android:layout_marginTop="@dimen/profile_tv_margin"
+			android:layout_marginEnd="@dimen/profile_tv_margin"
+			android:fadeScrollbars="false"
+			android:linksClickable="true"
+			android:scrollbars="vertical"
+			android:maxLines="@integer/profile_text_bio_lines"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_button_barrier"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+		<TextView
+			android:id="@+id/page_profile_location"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_tv_margin"
+			android:layout_marginTop="@dimen/profile_tv_margin"
+			android:drawablePadding="@dimen/profile_padding_drawable"
+			android:lines="1"
+			android:textSize="@dimen/profile_textsize_small"
+			android:visibility="invisible"
+			app:layout_constraintHorizontal_weight="1"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_description"
+			app:layout_constraintEnd_toStartOf="@id/page_profile_links" />
+
+		<TextView
+			android:id="@+id/page_profile_links"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="@dimen/profile_tv_margin"
+			android:layout_marginTop="@dimen/profile_tv_margin"
+			android:layout_marginEnd="@dimen/profile_tv_margin"
+			android:drawablePadding="@dimen/profile_padding_drawable"
+			android:lines="1"
+			android:linksClickable="true"
+			android:textSize="@dimen/profile_textsize_small"
+			android:visibility="invisible"
+			app:layout_constraintHorizontal_weight="1"
+			app:layout_constraintStart_toEndOf="@id/page_profile_location"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_description"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+		<androidx.constraintlayout.widget.Barrier
+			android:id="@+id/page_profile_date_barrier"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:barrierDirection="bottom"
+			app:constraint_referenced_ids="page_profile_location,page_profile_links" />
+
+		<TextView
+			android:id="@+id/page_profile_date"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_margin="@dimen/profile_tv_margin"
+			android:drawablePadding="@dimen/profile_padding_drawable"
+			android:lines="1"
+			android:textSize="@dimen/profile_textsize_small"
+			android:visibility="invisible"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_date_barrier"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+	</androidx.constraintlayout.widget.ConstraintLayout>
+
+	<androidx.constraintlayout.widget.ConstraintLayout
+		android:id="@+id/page_profile_body"
+		android:layout_width="0dp"
+		android:layout_height="match_parent"
+		android:layout_weight="1">
+
+		<org.nuclearfog.twidda.ui.views.TabSelector
+			android:id="@+id/page_profile_tab"
+			android:layout_width="0dp"
+			android:layout_height="@dimen/profile_toolbar_height"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="parent"
+			app:viewpager="@id/page_profile_pager" />
+
+		<androidx.viewpager2.widget.ViewPager2
+			android:id="@+id/page_profile_pager"
+			android:layout_width="0dp"
+			android:layout_height="0dp"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toEndOf="parent"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toBottomOf="@id/page_profile_tab" />
+
+		<com.google.android.material.floatingactionbutton.FloatingActionButton
+			android:id="@+id/page_profile_post_button"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="end|bottom"
+			android:layout_margin="@dimen/floating_button_margin"
+			android:contentDescription="@string/menu_status"
+			android:src="@drawable/post"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toEndOf="parent" />
+
+	</androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

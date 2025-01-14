@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<declare-styleable name="CollapseLayout">
+		<attr name="header" format="reference" />
+		<attr name="body" format="reference" />
+	</declare-styleable>
+
+	<declare-styleable name="TabSelector">
+		<attr name="viewpager" format="reference" />
+	</declare-styleable>
+
+	<declare-styleable name="ZoomView">
+		<attr name="max_zoom_in" format="float" />
+		<attr name="max_zoom_out" format="float" />
+		<attr name="enable_move" format="boolean" />
+	</declare-styleable>
+
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:layout_marginStart="@dimen/item_icon_indicator_margin"
+	android:layout_marginEnd="@dimen/item_icon_indicator_margin">
+
+	<ImageButton
+		android:id="@+id/item_icon_media"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:background="@drawable/round"
+		android:padding="@dimen/item_status_indicator_padding"
+		android:scaleType="fitCenter"
+		android:contentDescription="@string/description_attachment_icon" />
+
+</FrameLayout>

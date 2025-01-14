@@ -1,162 +1,99 @@
 package org.nuclearfog.twidda.backend.async;
 
-import android.os.AsyncTask;
+import android.content.Context;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.nuclearfog.twidda.backend.api.Twitter;
-import org.nuclearfog.twidda.backend.api.TwitterException;
-import org.nuclearfog.twidda.backend.lists.Users;
-import org.nuclearfog.twidda.ui.fragments.UserFragment;
-
-import java.lang.ref.WeakReference;
+import org.nuclearfog.twidda.backend.api.Connection;
+import org.nuclearfog.twidda.backend.api.ConnectionException;
+import org.nuclearfog.twidda.backend.api.ConnectionManager;
+import org.nuclearfog.twidda.database.AppDatabase;
+import org.nuclearfog.twidda.model.User;
 
 /**
- * download a list of user such as follower, following or searched users
+ * Async class to load user information
  *
  * @author nuclearfog
- * @see UserFragment
  */
-public class UserLoader extends AsyncTask<Long, Void, Users> {
+public class UserLoader extends AsyncExecutor<UserLoader.Param, UserLoader.Result> {
 
-	public static final long NO_CURSOR = -1;
-
-	/**
-	 * load follower list
-	 */
-	public static final int FOLLOWS = 1;
+	private Connection connection;
+	private AppDatabase db;
 
 	/**
-	 * load following list
+	 *
 	 */
-	public static final int FRIENDS = 2;
-
-	/**
-	 * load users retweeting a tweet
-	 */
-	public static final int RETWEET = 3;
-
-	/**
-	 * load users favoriting a tweet
-	 */
-	public static final int FAVORIT = 4;
-
-	/**
-	 * list users of a search result
-	 */
-	public static final int SEARCH = 5;
-
-	/**
-	 * load users subscribing an userlist
-	 */
-	public static final int SUBSCRIBER = 6;
-
-	/**
-	 * load members of an userlist
-	 */
-	public static final int LISTMEMBER = 7;
-
-	/**
-	 * create a list of blocked users
-	 */
-	public static final int BLOCK = 8;
-
-	/**
-	 * create a list of muted users
-	 */
-	public static final int MUTE = 9;
-
-	/**
-	 * create a list with outgoing follow requests
-	 */
-	public static final int OUTGOING_REQ = 10;
-
-	/**
-	 * create a list with incoming follow requests
-	 */
-	public static final int INCOMING_REQ = 11;
-
-
-	@Nullable
-	private TwitterException twException;
-	private final WeakReference<UserFragment> weakRef;
-	private Twitter mTwitter;
-
-	private final int type;
-	private final String search;
-	private final long id;
-
-	/**
-	 * @param fragment reference to {@link UserFragment}
-	 * @param type     type of list to load
-	 * @param id       ID depending on what list to load (user ID, tweet ID, list ID)
-	 * @param search   search string if type is {@link #SEARCH} or empty
-	 */
-	public UserLoader(UserFragment fragment, int type, long id, String search) {
-		super();
-		mTwitter = Twitter.get(fragment.getContext());
-		weakRef = new WeakReference<>(fragment);
-
-		this.type = type;
-		this.search = search;
-		this.id = id;
+	public UserLoader(Context context) {
+		connection = ConnectionManager.getDefaultConnection(context);
+		db = new AppDatabase(context);
 	}
 
 
 	@Override
-	protected Users doInBackground(Long[] param) {
+	protected Result doInBackground(@NonNull Param param) {
 		try {
-			long cursor = param[0];
-			switch (type) {
-				case FOLLOWS:
-					return mTwitter.getFollower(id, cursor);
+			switch (param.mode) {
+				case Param.LOCAL:
+					User user = db.getUser(param.id);
+					if (user != null) {
+						return new Result(Result.LOCAL, user, null);
+					}
+					// fall through
 
-				case FRIENDS:
-					return mTwitter.getFollowing(id, cursor);
+				case Param.ONLINE:
+					user = connection.showUser(param.id);
+					db.saveUser(user);
+					return new Result(Result.ONLINE, user, null);
 
-				case RETWEET:
-					return mTwitter.getRetweetingUsers(id);
-
-				case FAVORIT:
-					return mTwitter.getLikingUsers(id);
-
-				case SEARCH:
-					return mTwitter.searchUsers(search, cursor);
-
-				case SUBSCRIBER:
-					return mTwitter.getListSubscriber(id, cursor);
-
-				case LISTMEMBER:
-					return mTwitter.getListMember(id, cursor);
-
-				case BLOCK:
-					return mTwitter.getBlockedUsers(cursor);
-
-				case MUTE:
-					return mTwitter.getMutedUsers(cursor);
-
-				case INCOMING_REQ:
-					return mTwitter.getIncomingFollowRequests(cursor);
-
-				case OUTGOING_REQ:
-					return mTwitter.getOutgoingFollowRequests(cursor);
+				default:
+					return null;
 			}
-		} catch (TwitterException twException) {
-			this.twException = twException;
+		} catch (ConnectionException exception) {
+			return new Result(Result.ERROR, null, exception);
 		}
-		return null;
 	}
 
+	/**
+	 *
+	 */
+	public static class Param {
 
-	@Override
-	protected void onPostExecute(Users users) {
-		UserFragment fragment = weakRef.get();
-		if (fragment != null) {
-			if (users != null) {
-				fragment.setData(users);
-			} else {
-				fragment.onError(twException);
-			}
+		public static final int LOCAL = 1;
+		public static final int ONLINE = 2;
+
+		final int mode;
+		final long id;
+
+		/**
+		 * @param mode source where to fetch user information {@link #LOCAL,#ONLINE}
+		 * @param id   user ID
+		 */
+		public Param(int mode, long id) {
+			this.mode = mode;
+			this.id = id;
+		}
+	}
+
+	/**
+	 *
+	 */
+	public static class Result {
+
+		public static final int ERROR = -1;
+		public static final int LOCAL = 10;
+		public static final int ONLINE = 11;
+
+		@Nullable
+		public final User user;
+		@Nullable
+		public final ConnectionException exception;
+		public final int mode;
+
+		Result(int mode, @Nullable User user, @Nullable ConnectionException exception) {
+			this.mode = mode;
+			this.user = user;
+			this.exception = exception;
 		}
 	}
 }

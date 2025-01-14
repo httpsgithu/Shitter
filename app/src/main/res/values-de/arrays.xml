@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="timeunits">
+		<item>Minuten</item>
+		<item>Stunden</item>
+		<item>Tage</item>
+	</string-array>
+
+	<string-array name="visibility">
+		<item>Standard</item>
+		<item>Öffentlich</item>
+		<item>Privat</item>
+		<item>Direkt</item>
+		<item>Ungelistet</item>
+	</string-array>
+
+	<string-array name="push_policy">
+		<item>alle Nachrichten erlauben</item>
+		<item>nur Nachrichten von Followings erlauben</item>
+		<item>nur Nachrichten von Followern erlauben</item>
+	</string-array>
+
+	<string-array name="scales">
+		<item>0,5 X</item>
+		<item>0,8 X</item>
+		<item>1,0 X</item>
+		<item>1,5 X</item>
+		<item>2,0 X</item>
+	</string-array>
+
+	<string-array name="reports">
+		<item>Spam</item>
+		<item>Regelmissbrauch</item>
+		<item>andere Gründe</item>
+	</string-array>
+
+	<string-array name="tag_labels">
+		<item>gefolgt</item>
+		<item>vorgestellt</item>
+		<item>voegeschlagen</item>
+	</string-array>
+
+	<string-array name="userlist_policy">
+		<item>zeige keine Replies</item>
+		<item>zeige Replies von gefolgten Nutzern</item>
+		<item>zeige alle Replies</item>
+	</string-array>
+
+	<string-array name="public_timelines">
+		<item>zeige alle Posts</item>
+		<item>zeige lokale Posts</item>
+		<item>zeige externe Posts</item>
+	</string-array>
+
+</resources>

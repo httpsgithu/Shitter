@@ -1,216 +1,332 @@
 package org.nuclearfog.twidda.database;
 
-import static android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE;
-import static android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.FavoriteTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.MessageTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.TrendTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.TweetRegisterTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.TweetTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.UserRegisterTable;
-import static org.nuclearfog.twidda.database.DatabaseAdapter.UserTable;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
-import org.nuclearfog.twidda.backend.lists.Directmessages;
-import org.nuclearfog.twidda.database.impl.DirectMessageImpl;
-import org.nuclearfog.twidda.database.impl.TrendImpl;
-import org.nuclearfog.twidda.database.impl.TweetImpl;
-import org.nuclearfog.twidda.database.impl.UserImpl;
-import org.nuclearfog.twidda.model.DirectMessage;
-import org.nuclearfog.twidda.model.Trend;
-import org.nuclearfog.twidda.model.Tweet;
+import org.nuclearfog.twidda.backend.utils.StringUtils;
+import org.nuclearfog.twidda.config.GlobalSettings;
+import org.nuclearfog.twidda.database.DatabaseAdapter.AccountTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.BookmarkTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.EmojiTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.FavoriteTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.InstanceTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.LocationTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.MediaTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.NotificationTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.PollTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.PushTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.ReplyTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.StatusPropertiesTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.StatusTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.TagTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.UserPropertiesTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.UserTable;
+import org.nuclearfog.twidda.database.DatabaseAdapter.UserFieldTable;
+import org.nuclearfog.twidda.database.impl.DatabaseAccount;
+import org.nuclearfog.twidda.database.impl.DatabaseEmoji;
+import org.nuclearfog.twidda.database.impl.DatabaseField;
+import org.nuclearfog.twidda.database.impl.DatabaseInstance;
+import org.nuclearfog.twidda.database.impl.DatabaseLocation;
+import org.nuclearfog.twidda.database.impl.DatabaseMedia;
+import org.nuclearfog.twidda.database.impl.DatabaseNotification;
+import org.nuclearfog.twidda.database.impl.DatabasePoll;
+import org.nuclearfog.twidda.database.impl.DatabasePush;
+import org.nuclearfog.twidda.database.impl.DatabaseStatus;
+import org.nuclearfog.twidda.database.impl.DatabaseTag;
+import org.nuclearfog.twidda.database.impl.DatabaseUser;
+import org.nuclearfog.twidda.model.Account;
+import org.nuclearfog.twidda.model.Emoji;
+import org.nuclearfog.twidda.model.Field;
+import org.nuclearfog.twidda.model.Instance;
+import org.nuclearfog.twidda.model.Location;
+import org.nuclearfog.twidda.model.Media;
+import org.nuclearfog.twidda.model.Notification;
+import org.nuclearfog.twidda.model.Poll;
+import org.nuclearfog.twidda.model.PollOption;
+import org.nuclearfog.twidda.model.Status;
+import org.nuclearfog.twidda.model.Tag;
 import org.nuclearfog.twidda.model.User;
+import org.nuclearfog.twidda.model.WebPush;
+import org.nuclearfog.twidda.model.lists.Accounts;
+import org.nuclearfog.twidda.model.lists.Notifications;
+import org.nuclearfog.twidda.model.lists.Statuses;
+import org.nuclearfog.twidda.model.lists.Tags;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
- * SQLite database class to store and load tweets, messages, trends and user information
+ * SQLite database class to store and load status, messages, trends and user information
  *
  * @author nuclearfog
  */
 public class AppDatabase {
 
-	// Tweet status bits
-	public static final int FAV_MASK = 1;          //  tweet is favorited by user
-	public static final int RTW_MASK = 1 << 1;     //  tweet is retweeted by user
-	public static final int HOM_MASK = 1 << 2;     //  tweet is from home timeline
-	public static final int MEN_MASK = 1 << 3;     //  tweet is from mention timeline
-	public static final int UTW_MASK = 1 << 4;     //  tweet is from an users timeline
-	public static final int RPL_MASK = 1 << 5;     //  tweet is from a reply timeline
-	public static final int MEDIA_IMAGE_MASK = 1 << 6; // tweet contains images
-	public static final int MEDIA_VIDEO_MASK = 2 << 6; // tweet contains a video
-	public static final int MEDIA_ANGIF_MASK = 3 << 6; // tweet contains an animation
-	public static final int MEDIA_SENS_MASK = 1 << 8;  // tweet contains sensitive media
-	public static final int HIDDEN_MASK = 1 << 9;      // tweet is hidden
-
-	// user status bits
-	public static final int VER_MASK = 1;          //  user is verified
-	public static final int LCK_MASK = 1 << 1;     //  user is private
-	public static final int FRQ_MASK = 1 << 2;     //  a follow request is pending
-	public static final int EXCL_USR = 1 << 3;     //  user excluded from mention timeline
-	public static final int DEF_IMG = 1 << 4;      //  user has a default profile image
+	/**
+	 * used if no ID is defined
+	 */
+	private static final long NO_ID = -1L;
 
 	/**
-	 * query to create tweet table with user and register columns
+	 * query to create status table with user and register columns
 	 */
-	private static final String TWEET_TABLE = TweetTable.NAME
-			+ " INNER JOIN " + UserTable.NAME
-			+ " ON " + TweetTable.NAME + "." + TweetTable.USER + "=" + UserTable.NAME + "." + UserTable.ID
-			+ " INNER JOIN " + UserRegisterTable.NAME
-			+ " ON " + TweetTable.NAME + "." + TweetTable.USER + "=" + UserRegisterTable.NAME + "." + UserRegisterTable.ID
-			+ " INNER JOIN " + TweetRegisterTable.NAME
-			+ " ON " + TweetTable.NAME + "." + TweetTable.ID + "=" + TweetRegisterTable.NAME + "." + TweetRegisterTable.ID;
+	private static final String STATUS_SUBQUERY = StatusTable.TABLE
+			+ " INNER JOIN " + UserTable.TABLE
+			+ " ON " + StatusTable.TABLE + "." + StatusTable.USER + "=" + UserTable.TABLE + "." + UserTable.ID
+			+ " INNER JOIN " + UserPropertiesTable.TABLE
+			+ " ON " + StatusTable.TABLE + "." + StatusTable.USER + "=" + UserPropertiesTable.TABLE + "." + UserPropertiesTable.USER
+			+ " INNER JOIN " + StatusPropertiesTable.TABLE
+			+ " ON " + StatusTable.TABLE + "." + StatusTable.ID + "=" + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.STATUS;
+
+	/**
+	 * subquery to get user information
+	 */
+	private static final String USER_SUBQUERY = UserTable.TABLE
+			+ " INNER JOIN " + UserPropertiesTable.TABLE
+			+ " ON " + UserTable.TABLE + "." + UserTable.ID + "=" + UserPropertiesTable.TABLE + "." + UserPropertiesTable.USER;
+
+	/**
+	 * subquery used to get notification
+	 */
+	private static final String NOTIFICATION_SUBQUERY = NotificationTable.TABLE
+			+ " INNER JOIN(" + USER_SUBQUERY + ")" + UserTable.TABLE
+			+ " ON " + NotificationTable.TABLE + "." + NotificationTable.SENDER + "=" + UserTable.TABLE + "." + UserTable.ID;
+
+	/**
+	 * SQL query to get home timeline status
+	 */
+	private static final String HOME_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY + ")"
+			+ " WHERE " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.FLAGS + "&" + StatusPropertiesTable.MASK_STATUS_HOME_TIMELINE + " IS NOT 0"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.REGISTER + "&" + UserPropertiesTable.MASK_USER_FILTERED + " IS 0"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " ORDER BY " + StatusTable.ID + " DESC"
+			+ " LIMIT ?;";
+
+	/**
+	 * SQL query to get timeline of an user
+	 */
+	private static final String USER_STATUS_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY + ")"
+			+ " WHERE " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.FLAGS + "&" + StatusPropertiesTable.MASK_STATUS_USER_TIMELINE + " IS NOT 0"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " AND " + StatusTable.TABLE + "." + StatusTable.USER + "=?"
+			+ " ORDER BY " + StatusTable.ID + " DESC"
+			+ " LIMIT ?;";
+
+	/**
+	 * SQL query to get timeline of an user with replies
+	 */
+	private static final String USER_REPLY_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY + ")"
+			+ " WHERE " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.FLAGS + "&" + StatusPropertiesTable.MASK_STATUS_USER_REPLY + " IS NOT 0"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " AND " + StatusTable.TABLE + "." + StatusTable.USER + "=?"
+			+ " ORDER BY " + StatusTable.ID + " DESC"
+			+ " LIMIT ?;";
+
+	/**
+	 * SQL query to get status favored by an user
+	 */
+	private static final String USER_FAVORIT_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY + ")"
+			+ " INNER JOIN " + FavoriteTable.TABLE
+			+ " ON " + StatusTable.TABLE + "." + StatusTable.ID + "=" + FavoriteTable.TABLE + "." + FavoriteTable.ID
+			+ " WHERE " + FavoriteTable.TABLE + "." + FavoriteTable.OWNER + "=?"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " ORDER BY " + StatusTable.ID + " DESC"
+			+ " LIMIT ?;";
+
+	/**
+	 * SQL query to get status favored by an user
+	 */
+	private static final String USER_BOOKMARKS_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY + ")"
+			+ " INNER JOIN " + BookmarkTable.TABLE
+			+ " ON " + StatusTable.TABLE + "." + StatusTable.ID + "=" + BookmarkTable.TABLE + "." + BookmarkTable.ID
+			+ " WHERE " + BookmarkTable.TABLE + "." + BookmarkTable.OWNER + "=?"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " ORDER BY " + StatusTable.ID + " DESC"
+			+ " LIMIT ?;";
+
+	/**
+	 * SQL query to get a single status specified by an ID
+	 */
+	private static final String SINGLE_STATUS_QUERY = "SELECT * FROM " + STATUS_SUBQUERY
+			+ " WHERE " + StatusTable.TABLE + "." + StatusTable.ID + "=?"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " LIMIT 1;";
 
 	/**
 	 * query to get user information
 	 */
-	private static final String USER_TABLE = "SELECT * FROM " + UserTable.NAME
-			+ " INNER JOIN " + UserRegisterTable.NAME
-			+ " ON " + UserTable.NAME + "." + UserTable.ID + "=" + UserRegisterTable.NAME + "." + UserRegisterTable.ID
-			+ " WHERE " + UserTable.NAME + "." + UserTable.ID + "=? LIMIT 1";
+	private static final String SINGLE_USER_QUERY = "SELECT * FROM " + USER_SUBQUERY
+			+ " WHERE " + UserTable.TABLE + "." + UserTable.ID + "=?"
+			+ " LIMIT 1;";
 
 	/**
-	 * SQL query to get home timeline tweets
+	 * SQL query to get replies of a status specified by a status ID
 	 */
-	static final String HOME_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " WHERE " + TweetRegisterTable.NAME + "." + TweetRegisterTable.REGISTER + "&" + HOM_MASK + " IS NOT 0"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " ORDER BY " + TweetTable.ID
-			+ " DESC LIMIT ?";
+	private static final String REPLY_QUERY = "SELECT * FROM(" + STATUS_SUBQUERY +
+			" INNER JOIN " + ReplyTable.TABLE
+			+ " ON " + ReplyTable.TABLE + "." + ReplyTable.ID + "=" + StatusTable.TABLE + "." + StatusTable.ID + ")"
+			+ " WHERE " + ReplyTable.TABLE + "." + ReplyTable.REPLY + "=?"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.OWNER + "=?"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.OWNER + "=?"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.FLAGS + "&" + StatusPropertiesTable.MASK_STATUS_REPLY + " IS NOT 0"
+			+ " AND " + StatusPropertiesTable.TABLE + "." + StatusPropertiesTable.FLAGS + "&" + StatusPropertiesTable.MASK_STATUS_HIDDEN + " IS 0"
+			+ " AND " + UserPropertiesTable.TABLE + "." + UserPropertiesTable.REGISTER + "&" + UserPropertiesTable.MASK_USER_FILTERED + " IS 0"
+			+ " ORDER BY " + ReplyTable.TABLE + "." + ReplyTable.ORDER + " ASC"
+			+ " LIMIT ?;";
 
 	/**
-	 * SQL query to get mention timeline
+	 * SQL query to get notifications
 	 */
-	static final String MENTION_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " WHERE " + TweetRegisterTable.NAME + "." + TweetRegisterTable.REGISTER + "&" + MEN_MASK + " IS NOT 0"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.REGISTER + "&" + EXCL_USR + " IS 0"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " ORDER BY " + TweetTable.ID
-			+ " DESC LIMIT ?";
+	private static final String NOTIFICATION_QUERY = "SELECT * FROM " + NOTIFICATION_SUBQUERY
+			+ " WHERE " + NotificationTable.TABLE + "." + NotificationTable.RECEIVER + "=?"
+			+ " ORDER BY " + NotificationTable.TIME + " DESC"
+			+ " LIMIT ?;";
 
 	/**
-	 * SQL query to get tweets of an user
+	 * SQL Query to get a single notification
 	 */
-	static final String USERTWEET_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " WHERE " + TweetRegisterTable.NAME + "." + TweetRegisterTable.REGISTER + "&" + UTW_MASK + " IS NOT 0"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " AND " + TweetTable.NAME + "." + TweetTable.USER + "=?"
-			+ " ORDER BY " + TweetTable.ID
-			+ " DESC LIMIT ?";
+	private static final String SINGLE_NOTIFICATION_QUERY = "SELECT * FROM " + NOTIFICATION_SUBQUERY
+			+ " WHERE " + NotificationTable.TABLE + "." + NotificationTable.ID + "=?"
+			+ " LIMIT 1;";
 
 	/**
-	 * SQL query to get tweets favored by an user
+	 * select status entries from favorite table matching status ID
+	 * this status can be favored by multiple users
 	 */
-	static final String USERFAVORIT_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " INNER JOIN " + FavoriteTable.NAME
-			+ " ON " + TweetTable.NAME + "." + TweetTable.ID + "=" + FavoriteTable.NAME + "." + FavoriteTable.TWEETID
-			+ " WHERE " + FavoriteTable.NAME + "." + FavoriteTable.FAVORITEDBY + "=?"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " ORDER BY " + TweetTable.ID
-			+ " DESC LIMIT ?";
+	private static final String FAVORITE_SELECT_STATUS = FavoriteTable.ID + "=?";
 
 	/**
-	 * SQL query to get a single tweet specified by an ID
+	 * select all statuses from favorite table favored by given user
 	 */
-	static final String SINGLE_TWEET_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " WHERE " + TweetTable.NAME + "." + TweetTable.ID + "=?"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " LIMIT 1";
+	private static final String FAVORITE_SELECT_OWNER = FavoriteTable.OWNER + "=?";
 
 	/**
-	 * SQL query to get replies of a tweet specified by a tweet ID
+	 * select status entries from favorite table matching status ID
+	 * this status can be favored by multiple users
 	 */
-	static final String REPLY_QUERY = "SELECT * FROM " + TWEET_TABLE
-			+ " WHERE " + TweetTable.NAME + "." + TweetTable.REPLYTWEET + "=?"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.OWNER + "=?"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.OWNER + "=?"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.REGISTER + "&" + RPL_MASK + " IS NOT 0"
-			+ " AND " + TweetRegisterTable.NAME + "." + TweetRegisterTable.REGISTER + "&" + HIDDEN_MASK + " IS 0"
-			+ " AND " + UserRegisterTable.NAME + "." + UserRegisterTable.REGISTER + "&" + EXCL_USR + " IS 0"
-			+ " ORDER BY " + TweetTable.ID + " DESC LIMIT ?";
+	private static final String BOOKMARK_SELECT_STATUS = BookmarkTable.ID + "=?";
 
 	/**
-	 * SQL query to get current user's messages
+	 * select all statuses from favorite table favored by given user
 	 */
-	static final String MESSAGE_QUERY = "SELECT * FROM " + MessageTable.NAME
-			+ " WHERE " + MessageTable.FROM + "=? OR " + MessageTable.TO + "=?"
-			+ " ORDER BY " + MessageTable.SINCE + " DESC LIMIT ?";
+	private static final String BOOKMARK_SELECT_OWNER = BookmarkTable.OWNER + "=?";
 
 	/**
-	 * select tweet entries from favorite table matching tweet ID
-	 * this tweet can be favored by multiple users
+	 * select specific status from favorite table
 	 */
-	private static final String FAVORITE_SELECT_TWEET = FavoriteTable.TWEETID + "=?";
+	private static final String FAVORITE_SELECT = FAVORITE_SELECT_STATUS + " AND " + FAVORITE_SELECT_OWNER;
 
 	/**
-	 * select all tweets from favorite table favored by given user
+	 * select specific status from favorite table
 	 */
-	private static final String FAVORITE_SELECT_OWNER = FavoriteTable.FAVORITEDBY + "=?";
-
-	/**
-	 * select specific tweet from favorite table
-	 */
-	private static final String FAVORITE_SELECT = FAVORITE_SELECT_TWEET + " AND " + FAVORITE_SELECT_OWNER;
-
-	/**
-	 * select message from message table with ID
-	 */
-	private static final String MESSAGE_SELECT = MessageTable.ID + "=?";
+	private static final String BOOKMARK_SELECT = BOOKMARK_SELECT_STATUS + " AND " + BOOKMARK_SELECT_OWNER;
 
 	/**
 	 * select trends from trend table with given world ID
 	 */
-	private static final String TREND_SELECT = TrendTable.ID + "=?";
+	private static final String TREND_SELECT = TagTable.LOCATION + "=?";
 
 	/**
-	 * select tweet from tweet table matching tweet ID
+	 * select status from status table matching ID
 	 */
-	private static final String TWEET_SELECT = TweetTable.NAME + "." + TweetTable.ID + "=?";
+	private static final String STATUS_SELECT = StatusTable.TABLE + "." + StatusTable.ID + "=?";
 
 	/**
-	 * select user from user table matching user ID
+	 * select notification from notification table using status ID
 	 */
-	private static final String USER_SELECT = UserTable.NAME + "." + UserTable.ID + "=?";
+	private static final String NOTIFICATION_SELECT = NotificationTable.TABLE + "." + NotificationTable.ID + "=?";
 
 	/**
-	 * selection to get tweet register
+	 * select notification from notification table using status ID
 	 */
-	private static final String TWEET_REG_SELECT = TweetRegisterTable.ID + "=? AND " + TweetRegisterTable.OWNER + "=?";
+	private static final String NOTIFICATION_STATUS_SELECT = NotificationTable.TABLE + "." + NotificationTable.ITEM + "=?";
 
 	/**
-	 * selection to get user register
+	 * selection to get status flag register
 	 */
-	private static final String USER_REG_SELECT = UserRegisterTable.ID + "=? AND " + UserRegisterTable.OWNER + "=?";
+	private static final String STATUS_REG_SELECT = StatusPropertiesTable.STATUS + "=? AND " + StatusPropertiesTable.OWNER + "=?";
 
 	/**
-	 * column projection for user register
+	 * selection to get a single media entry
 	 */
-	private static final String[] USER_REG_COLUMN = {UserRegisterTable.REGISTER};
+	private static final String MEDIA_SELECT = MediaTable.KEY + "=?";
 
 	/**
-	 * column projection for tweet register
+	 * selection to get a single emoji entry
 	 */
-	private static final String[] TWEET_REG_COLUMN = {TweetRegisterTable.REGISTER};
+	private static final String EMOJI_SELECT = EmojiTable.CODE + "=?";
 
 	/**
-	 * default order for trend rows
+	 * selection to get a an user field entries
 	 */
-	private static final String TREND_ORDER = TrendTable.INDEX + " ASC";
+	private static final String FIELD_SELECT = UserFieldTable.USER + "=?";
+
+	/**
+	 * selection to get an user field entry
+	 */
+	private static final String FIELD_KEY_SELECT = FIELD_SELECT + " AND " + UserFieldTable.KEY + "=?";
+
+	/**
+	 * selection to get location
+	 */
+	private static final String LOCATION_SELECT = LocationTable.ID + "=?";
+
+	/**
+	 * selection to get user flag register
+	 */
+	private static final String USER_REG_SELECT = UserPropertiesTable.USER + "=? AND " + UserPropertiesTable.OWNER + "=?";
+
+	/**
+	 * selection for account entry
+	 */
+	private static final String ACCOUNT_SELECTION = AccountTable.ID + "=? AND " + AccountTable.HOSTNAME + "=?";
+
+	/**
+	 * selection for poll entry
+	 */
+	private static final String POLL_SELECTION = PollTable.ID + "=?";
+
+	/**
+	 * selection for a single webpush item
+	 */
+	private static final String PUSH_SELECTION = PushTable.INSTANCE + " LIKE ?";
+
+	/**
+	 * selection for instance entry
+	 */
+	private static final String INSTANCE_SELECTION = InstanceTable.DOMAIN + "=?";
+
+	/**
+	 * selection for status replies
+	 */
+	private static final String REPLY_SELECT = ReplyTable.REPLY + "=?";
+
+	/**
+	 * column projection for user flag register
+	 */
+	private static final String[] COLUMNS_REGISTER_USER = {UserPropertiesTable.REGISTER};
+
+	/**
+	 * column projection for status flag register
+	 */
+	private static final String[] COLUMNS_REGISTER_STATUS = {StatusPropertiesTable.FLAGS};
+
+	/**
+	 * default sort order for logins
+	 */
+	private static final String SORT_BY_CREATION = AccountTable.DATE + " DESC";
 
 	/**
 	 * limit for accessing a single row
@@ -220,238 +336,581 @@ public class AppDatabase {
 	/**
 	 * limit of database entries
 	 */
-	private final int limit;
-
-	/**
-	 * ID of the current user
-	 */
-	private final long homeId;
+	private GlobalSettings settings;
 
 	/**
 	 * adapter for the database backend
 	 */
-	private DatabaseAdapter adapter;
+	private final DatabaseAdapter adapter;
 
 	/**
 	 * @param context activity context
 	 */
 	public AppDatabase(Context context) {
 		adapter = DatabaseAdapter.getInstance(context);
-		GlobalSettings settings = GlobalSettings.getInstance(context);
-		homeId = settings.getCurrentUserId();
-		limit = settings.getListSize();
+		settings = GlobalSettings.get(context);
+	}
+
+	/**
+	 * save home timeline
+	 *
+	 * @param statuses status from home timeline
+	 */
+	public void saveHomeTimeline(Statuses statuses) {
+		synchronized (adapter) {
+			if (!statuses.isEmpty()) {
+				SQLiteDatabase db = adapter.getDbWrite();
+				for (Status status : statuses)
+					saveStatus(status, db, StatusPropertiesTable.MASK_STATUS_HOME_TIMELINE);
+				adapter.commit();
+			}
+		}
+	}
+
+	/**
+	 * save user timeline
+	 *
+	 * @param statuses user timeline
+	 */
+	public void saveUserTimeline(Statuses statuses) {
+		synchronized (adapter) {
+			if (!statuses.isEmpty()) {
+				SQLiteDatabase db = adapter.getDbWrite();
+				for (Status status : statuses)
+					saveStatus(status, db, StatusPropertiesTable.MASK_STATUS_USER_TIMELINE);
+				adapter.commit();
+			}
+		}
+	}
+
+	/**
+	 * save user reply timeline
+	 *
+	 * @param statuses user timeline
+	 */
+	public void saveUserReplies(Statuses statuses) {
+		synchronized (adapter) {
+			if (!statuses.isEmpty()) {
+				SQLiteDatabase db = adapter.getDbWrite();
+				for (Status status : statuses)
+					saveStatus(status, db, StatusPropertiesTable.MASK_STATUS_USER_REPLY);
+				adapter.commit();
+			}
+		}
+	}
+
+	/**
+	 * save user favorite timeline
+	 *
+	 * @param statuses status favored by user
+	 * @param ownerId  user ID
+	 */
+	public void saveFavoriteTimeline(Statuses statuses, long ownerId) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			// delete old favorits
+			String[] delArgs = {Long.toString(ownerId)};
+			db.delete(FavoriteTable.TABLE, FAVORITE_SELECT_OWNER, delArgs);
+			// add new favorits
+			if (!statuses.isEmpty()) {
+				for (Status status : statuses) {
+					saveStatus(status, db, 0);
+					saveFavorite(status.getId(), ownerId, db);
+				}
+			}
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * save user bookmark timeline
+	 *
+	 * @param statuses bookmarked statuses
+	 * @param ownerId  id of the owner
+	 */
+	public void saveBookmarkTimeline(Statuses statuses, long ownerId) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			// delete old bookmarks
+			String[] delArgs = {Long.toString(ownerId)};
+			db.delete(BookmarkTable.TABLE, BOOKMARK_SELECT_OWNER, delArgs);
+			// add new bookmarks
+			if (!statuses.isEmpty()) {
+				for (Status status : statuses) {
+					saveStatus(status, db, 0);
+					saveBookmark(status.getId(), ownerId, db);
+				}
+			}
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * store replies of a status
+	 *
+	 * @param id       replied status ID
+	 * @param statuses status replies
+	 */
+	public void saveReplies(long id, Statuses statuses) {
+		synchronized (adapter) {
+			if (!statuses.isEmpty()) {
+				SQLiteDatabase db = adapter.getDbWrite();
+				// delete old entries
+				db.delete(ReplyTable.TABLE, REPLY_SELECT, new String[]{Long.toString(id)});
+				int i = 0;
+				for (Status status : statuses) {
+					ContentValues column = new ContentValues();
+					column.put(ReplyTable.REPLY, id);
+					column.put(ReplyTable.ID, status.getId());
+					column.put(ReplyTable.ORDER, i++);
+					db.insert(ReplyTable.TABLE, "", column);
+					saveStatus(status, db, StatusPropertiesTable.MASK_STATUS_REPLY);
+				}
+				adapter.commit();
+			}
+		}
+	}
+
+	/**
+	 * save notifications to database
+	 */
+	public void saveNotifications(List<Notification> notifications) {
+		synchronized (adapter) {
+			if (!notifications.isEmpty()) {
+				SQLiteDatabase db = adapter.getDbWrite();
+				for (Notification notification : notifications) {
+					ContentValues column = new ContentValues();
+					column.put(NotificationTable.ID, notification.getId());
+					column.put(NotificationTable.TIME, notification.getTimestamp());
+					column.put(NotificationTable.TYPE, notification.getType());
+					column.put(NotificationTable.RECEIVER, settings.getLogin().getId());
+					column.put(NotificationTable.SENDER, notification.getUser().getId());
+					saveUser(notification.getUser(), db, SQLiteDatabase.CONFLICT_IGNORE);
+					// add status
+					if (notification.getStatus() != null) {
+						saveStatus(notification.getStatus(), db, StatusPropertiesTable.MASK_STATUS_NOTIFICATION);
+						column.put(NotificationTable.ITEM, notification.getStatus().getId());
+					}
+					db.insertWithOnConflict(NotificationTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+				}
+				adapter.commit();
+			}
+		}
+	}
+
+	/**
+	 * save a list of tags
+	 *
+	 * @param tags List of tags
+	 */
+	public void saveTrends(List<Tag> tags) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(settings.getTrendLocation().getId())};
+			SQLiteDatabase db = adapter.getDbWrite();
+			db.delete(TagTable.TABLE, TREND_SELECT, args);
+			for (Tag tag : tags) {
+				int flags = tag.isFollowed() ? DatabaseTag.FLAG_FOLLOWED : 0;
+				ContentValues column = new ContentValues();
+				column.put(TagTable.LOCATION, tag.getLocationId());
+				column.put(TagTable.VOL, tag.getPopularity());
+				column.put(TagTable.TAG_NAME, tag.getName());
+				column.put(TagTable.INDEX, tag.getRank());
+				column.put(TagTable.ID, tag.getId());
+				column.put(TagTable.FLAGS, flags);
+				db.insert(TagTable.TABLE, "", column);
+			}
+			adapter.commit();
+		}
 	}
 
 	/**
 	 * Store user information
-	 *
-	 * @param user Twitter user
 	 */
-	public void storeUser(User user) {
-		SQLiteDatabase db = getDbWrite();
-		storeUser(user, db, CONFLICT_REPLACE);
-		commit(db);
-	}
-
-	/**
-	 * store home timeline
-	 *
-	 * @param home tweet from home timeline
-	 */
-	public void storeHomeTimeline(List<Tweet> home) {
-		SQLiteDatabase db = getDbWrite();
-		for (Tweet tweet : home)
-			storeTweet(tweet, HOM_MASK, db);
-		commit(db);
-	}
-
-	/**
-	 * store mentions
-	 *
-	 * @param mentions tweets
-	 */
-	public void storeMentions(List<Tweet> mentions) {
-		SQLiteDatabase db = getDbWrite();
-		for (Tweet tweet : mentions)
-			storeTweet(tweet, MEN_MASK, db);
-		commit(db);
-	}
-
-	/**
-	 * store user timeline
-	 *
-	 * @param stats user timeline
-	 */
-	public void storeUserTweets(List<Tweet> stats) {
-		SQLiteDatabase db = getDbWrite();
-		for (Tweet tweet : stats)
-			storeTweet(tweet, UTW_MASK, db);
-		commit(db);
-	}
-
-	/**
-	 * store user favors
-	 *
-	 * @param fav     tweet favored by user
-	 * @param ownerId user ID
-	 */
-	public void storeUserFavs(List<Tweet> fav, long ownerId) {
-		SQLiteDatabase db = getDbWrite();
-		removeOldFavorites(db, ownerId);
-		for (Tweet tweet : fav) {
-			storeTweet(tweet, 0, db);
-			storeFavorite(tweet.getId(), ownerId, db);
+	public void saveUser(User user) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveUser(user, db, SQLiteDatabase.CONFLICT_REPLACE);
+			adapter.commit();
 		}
-		commit(db);
 	}
 
 	/**
-	 * store replies of a tweet
+	 * update status
 	 *
-	 * @param replies tweet replies
+	 * @param status status to update
 	 */
-	public void storeReplies(List<Tweet> replies) {
-		SQLiteDatabase db = getDbWrite();
-		for (Tweet tweet : replies)
-			storeTweet(tweet, RPL_MASK, db);
-		commit(db);
-	}
-
-	/**
-	 * store location specific trends
-	 *
-	 * @param trends List of Trends
-	 * @param woeId  Yahoo World ID
-	 */
-	public void storeTrends(List<Trend> trends, int woeId) {
-		String[] args = {Integer.toString(woeId)};
-		SQLiteDatabase db = getDbWrite();
-		db.delete(TrendTable.NAME, TREND_SELECT, args);
-		for (Trend trend : trends) {
-			ContentValues trendColumn = new ContentValues(4);
-			trendColumn.put(TrendTable.ID, woeId);
-			trendColumn.put(TrendTable.VOL, trend.getPopularity());
-			trendColumn.put(TrendTable.TREND, trend.getName());
-			trendColumn.put(TrendTable.INDEX, trend.getRank());
-			db.insert(TrendTable.NAME, null, trendColumn);
+	public void saveStatus(Status status) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveStatus(status, db, 0);
+			adapter.commit();
 		}
-		commit(db);
 	}
 
 	/**
-	 * store tweet ID of a favored tweet by the current user
+	 * save instance information
 	 *
-	 * @param tweet favored tweet
+	 * @param instance instance information
 	 */
-	public void storeFavorite(Tweet tweet) {
-		if (tweet.getEmbeddedTweet() != null)
-			tweet = tweet.getEmbeddedTweet();
-		SQLiteDatabase db = getDbWrite();
-		storeTweet(tweet, 0, db);
-		storeFavorite(tweet.getId(), homeId, db);
-		commit(db);
+	public void saveInstance(Instance instance) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveInstance(instance, db);
+			adapter.commit();
+		}
 	}
 
 	/**
-	 * store direct messages
+	 * save user login
 	 *
-	 * @param messages list of direct messages
+	 * @param account login information
 	 */
-	public void storeMessage(List<DirectMessage> messages) {
-		SQLiteDatabase db = getDbWrite();
-		for (DirectMessage message : messages)
-			storeMessage(message, db);
-		commit(db);
+	public void saveLogin(Account account) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			// delete login entry if exists
+			String[] accountArgs = {Long.toString(account.getId()), account.getHostname()};
+			db.delete(AccountTable.TABLE, ACCOUNT_SELECTION, accountArgs);
+			// insert/update login
+			ContentValues column = new ContentValues();
+			column.put(AccountTable.ID, account.getId());
+			column.put(AccountTable.DATE, account.getTimestamp());
+			column.put(AccountTable.HOSTNAME, account.getHostname());
+			column.put(AccountTable.CLIENT_ID, account.getConsumerToken());
+			column.put(AccountTable.CLIENT_SECRET, account.getConsumerSecret());
+			column.put(AccountTable.API, account.getConfiguration().getAccountType());
+			column.put(AccountTable.ACCESS_TOKEN, account.getOauthToken());
+			column.put(AccountTable.TOKEN_SECRET, account.getOauthSecret());
+			column.put(AccountTable.BEARER, account.getBearerToken());
+			column.put(AccountTable.IMAGE, account.getProfileImageUrl());
+			column.put(AccountTable.USERNAME, account.getScreenname());
+			db.insertWithOnConflict(AccountTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * update existing login
+	 *
+	 * @param user user information to update
+	 */
+	public void updateCurrentLogin(User user) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			// delete login entry if exists
+			String[] accountArgs = {Long.toString(user.getId()), settings.getLogin().getHostname()};
+			// update login columns
+			ContentValues column = new ContentValues();
+			column.put(AccountTable.IMAGE, user.getProfileImageThumbnailUrl());
+			column.put(AccountTable.USERNAME, user.getScreenname());
+			db.update(AccountTable.TABLE, column, ACCOUNT_SELECTION, accountArgs);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * store ID of a favorited status to the current users favorite list
+	 *
+	 * @param status favorited status
+	 */
+	public void saveToFavorits(Status status) {
+		synchronized (adapter) {
+			if (status.getEmbeddedStatus() != null)
+				status = status.getEmbeddedStatus();
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveStatus(status, db, 0);
+			saveFavorite(status.getId(), settings.getLogin().getId(), db);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * store ID of a status to the current users bookmarks
+	 *
+	 * @param status favorited status
+	 */
+	public void saveToBookmarks(Status status) {
+		synchronized (adapter) {
+			if (status.getEmbeddedStatus() != null)
+				status = status.getEmbeddedStatus();
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveStatus(status, db, 0);
+			saveBookmark(status.getId(), settings.getLogin().getId(), db);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * save emojis to database
+	 *
+	 * @param emojis list of emojis
+	 */
+	public void saveEmojis(List<Emoji> emojis) {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			saveEmojis(emojis.toArray(new Emoji[0]), db);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * save current user's webpush subscription
+	 *
+	 * @param push web push information
+	 */
+	public void saveWebPush(WebPush push) {
+		synchronized (adapter) {
+			ContentValues column = new ContentValues();
+			column.put(PushTable.ID, push.getId());
+			column.put(PushTable.HOST, push.getHost());
+			column.put(PushTable.INSTANCE, push.getInstance());
+			column.put(PushTable.PUB_KEY, push.getPublicKey());
+			column.put(PushTable.SEC_KEY, push.getServerKey());
+			column.put(PushTable.SERVER_KEY, push.getServerKey());
+			column.put(PushTable.AUTH_SECRET, push.getAuthSecret());
+
+			int flags = 0;
+			if (push.getPolicy() == WebPush.POLICY_ALL)
+				flags = PushTable.MASK_POLICY_ALL;
+			else if (push.getPolicy() == WebPush.POLICY_FOLLOWING)
+				flags = PushTable.MASK_POLICY_FOLLOWING;
+			else if (push.getPolicy() == WebPush.POLICY_FOLLOWER)
+				flags = PushTable.MASK_POLICY_FOLLOWER;
+			if (push.alertMentionEnabled())
+				flags |= PushTable.MASK_MENTION;
+			if (push.alertNewStatusEnabled())
+				flags |= PushTable.MASK_STATUS;
+			if (push.alertRepostEnabled())
+				flags |= PushTable.MASK_REPOST;
+			if (push.alertFollowingEnabled())
+				flags |= PushTable.MASK_FOLLOWING;
+			if (push.alertFollowRequestEnabled())
+				flags |= PushTable.MASK_REQUEST;
+			if (push.alertFavoriteEnabled())
+				flags |= PushTable.MASK_FAVORITE;
+			if (push.alertPollEnabled())
+				flags |= PushTable.MASK_POLL;
+			if (push.alertStatusChangeEnabled())
+				flags |= PushTable.MASK_MODIFIED;
+			column.put(PushTable.FLAGS, flags);
+
+			SQLiteDatabase db = adapter.getDbWrite();
+			db.insertWithOnConflict(PushTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+			adapter.commit();
+		}
 	}
 
 	/**
 	 * load home timeline
 	 *
-	 * @return tweet list
+	 * @return home timeline
 	 */
-	public List<Tweet> getHomeTimeline() {
-		String homeStr = Long.toString(homeId);
-		String[] args = {homeStr, homeStr, Integer.toString(limit)};
+	public Statuses getHomeTimeline() {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {homeStr, homeStr, Integer.toString(settings.getListSize())};
 
-		SQLiteDatabase db = getDbRead();
-		List<Tweet> tweetList = new LinkedList<>();
-		Cursor cursor = db.rawQuery(HOME_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				Tweet tweet = getTweet(cursor);
-				tweetList.add(tweet);
-			} while (cursor.moveToNext());
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(HOME_QUERY, args);
+			return getStatuses(cursor, db);
 		}
-		cursor.close();
-		return tweetList;
-	}
-
-	/**
-	 * load mentions
-	 *
-	 * @return tweet list
-	 */
-	public List<Tweet> getMentions() {
-		String homeStr = Long.toString(homeId);
-		String[] args = {homeStr, homeStr, Integer.toString(limit)};
-
-		SQLiteDatabase db = getDbRead();
-		List<Tweet> tweetList = new LinkedList<>();
-		Cursor cursor = db.rawQuery(MENTION_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				Tweet tweet = getTweet(cursor);
-				tweetList.add(tweet);
-			} while (cursor.moveToNext());
-		}
-		cursor.close();
-		return tweetList;
 	}
 
 	/**
 	 * load user timeline
 	 *
 	 * @param userID user ID
-	 * @return Tweet list of user tweets
+	 * @return user timeline
 	 */
-	public List<Tweet> getUserTweets(long userID) {
-		String homeStr = Long.toString(homeId);
-		String[] args = {homeStr, homeStr, Long.toString(userID), Integer.toString(limit)};
+	public Statuses getUserTimeline(long userID) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {homeStr, homeStr, Long.toString(userID), Integer.toString(settings.getListSize())};
 
-		SQLiteDatabase db = getDbRead();
-		List<Tweet> tweetList = new LinkedList<>();
-		Cursor cursor = db.rawQuery(USERTWEET_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				Tweet tweet = getTweet(cursor);
-				tweetList.add(tweet);
-			} while (cursor.moveToNext());
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(USER_STATUS_QUERY, args);
+			return getStatuses(cursor, db);
 		}
-		cursor.close();
-		return tweetList;
 	}
 
 	/**
-	 * load user favored tweets
+	 * load user reply timeline
+	 *
+	 * @param userId user ID
+	 * @return user timeline
+	 */
+	public Statuses getUserReplies(long userId) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {homeStr, homeStr, Long.toString(userId), Integer.toString(settings.getListSize())};
+
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(USER_REPLY_QUERY, args);
+			return getStatuses(cursor, db);
+		}
+	}
+
+	/**
+	 * load favorite timeline
 	 *
 	 * @param ownerID user ID
-	 * @return favored tweets by user
+	 * @return favorite timeline
 	 */
-	public List<Tweet> getUserFavorites(long ownerID) {
-		String homeStr = Long.toString(homeId);
-		String[] args = {Long.toString(ownerID), homeStr, homeStr, Integer.toString(limit)};
+	public Statuses getUserFavorites(long ownerID) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {Long.toString(ownerID), homeStr, homeStr, Integer.toString(settings.getListSize())};
 
-		SQLiteDatabase db = getDbRead();
-		List<Tweet> tweetList = new LinkedList<>();
-		Cursor cursor = db.rawQuery(USERFAVORIT_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				Tweet tweet = getTweet(cursor);
-				tweetList.add(tweet);
-			} while (cursor.moveToNext());
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(USER_FAVORIT_QUERY, args);
+			Statuses statuses = getStatuses(cursor, db);
+			statuses.setNextCursor(Statuses.NO_ID);
+			return statuses;
 		}
-		cursor.close();
-		return tweetList;
+	}
+
+	/**
+	 * load status bookmarks
+	 *
+	 * @param ownerID user ID
+	 * @return bookmark timeline
+	 */
+	public Statuses getUserBookmarks(long ownerID) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {Long.toString(ownerID), homeStr, homeStr, Integer.toString(settings.getListSize())};
+
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(USER_BOOKMARKS_QUERY, args);
+			Statuses statuses = getStatuses(cursor, db);
+			statuses.setNextCursor(Statuses.NO_ID);
+			return statuses;
+		}
+	}
+
+	/**
+	 * get reply timeline
+	 *
+	 * @param id status ID
+	 * @return status reply timeline
+	 */
+	public Statuses getReplies(long id) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {Long.toString(id), homeStr, homeStr, Integer.toString(settings.getListSize())};
+
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(REPLY_QUERY, args);
+			Statuses result = getStatuses(cursor, db);
+			result.setNextCursor(Statuses.NO_ID);
+			return result;
+		}
+	}
+
+	/**
+	 * get notifiactions
+	 *
+	 * @return notification lsit
+	 */
+	public Notifications getNotifications() {
+		synchronized (adapter) {
+			Account login = settings.getLogin();
+			String[] args = {Long.toString(login.getId()), Integer.toString(settings.getListSize())};
+			SQLiteDatabase db = adapter.getDbRead();
+			Notifications result = new Notifications();
+			Cursor cursor = db.rawQuery(NOTIFICATION_QUERY, args);
+			if (cursor.moveToFirst()) {
+				do {
+					Notification notification = getNotification(cursor, login);
+					result.add(notification);
+				} while (cursor.moveToNext());
+			}
+			cursor.close();
+			return result;
+		}
+	}
+
+	/**
+	 * Load trend List
+	 *
+	 * @return list of trends
+	 */
+	public Tags getTrends() {
+		synchronized (adapter) {
+			String[] args = {Long.toString(settings.getTrendLocation().getId())};
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.query(TagTable.TABLE, DatabaseTag.COLUMNS, TREND_SELECT, args, null, null, null);
+			Tags tags = new Tags();
+			if (cursor.moveToFirst()) {
+				do {
+					tags.add(new DatabaseTag(cursor));
+				} while (cursor.moveToNext());
+			}
+			cursor.close();
+			Collections.sort(tags);
+			return tags;
+		}
+	}
+
+	/**
+	 * get all user logins
+	 *
+	 * @return list of all logins
+	 */
+	public Accounts getLogins() {
+		synchronized (adapter) {
+			Accounts result = new Accounts();
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.query(AccountTable.TABLE, DatabaseAccount.COLUMNS, null, null, null, null, SORT_BY_CREATION);
+			if (cursor.moveToFirst()) {
+				do {
+					DatabaseAccount account = new DatabaseAccount(cursor);
+					result.add(account);
+				} while (cursor.moveToNext());
+			}
+			cursor.close();
+			return result;
+		}
+	}
+
+	/**
+	 * get a single instance of a domain
+	 *
+	 * @return instance or null if not found
+	 */
+	@Nullable
+	public Instance getInstance() {
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbRead();
+			String[] args = {settings.getLogin().getHostname()};
+			Instance result = null;
+			Cursor cursor = db.query(InstanceTable.TABLE, DatabaseInstance.COLUMNS, INSTANCE_SELECTION, args, null, null, null);
+			if (cursor.moveToFirst()) {
+				result = new DatabaseInstance(cursor);
+			}
+			cursor.close();
+			return result;
+		}
+	}
+
+	/**
+	 * get a single notification by ID
+	 *
+	 * @param id notification ID
+	 * @return notification
+	 */
+	@Nullable
+	public Notification getNotification(long id) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(id)};
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(SINGLE_NOTIFICATION_QUERY, args);
+			Notification notification = null;
+			if (cursor.moveToFirst())
+				notification = new DatabaseNotification(cursor, settings.getLogin());
+			cursor.close();
+			return notification;
+		}
 	}
 
 	/**
@@ -461,257 +920,530 @@ public class AppDatabase {
 	 * @return user information or null if not found
 	 */
 	@Nullable
-	public User getUser(long userId) {
-		SQLiteDatabase db = getDbRead();
-		return getUser(userId, db);
+	public DatabaseUser getUser(long userId) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(userId)};
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor cursor = db.rawQuery(SINGLE_USER_QUERY, args);
+			DatabaseUser user = null;
+			if (cursor.moveToFirst()) {
+				user = new DatabaseUser(cursor, settings.getLogin());
+				setUserInformation(db, user);
+			}
+			cursor.close();
+			return user;
+		}
 	}
 
 	/**
-	 * get tweet from database
+	 * get status from database
 	 *
-	 * @param tweetId tweet ID
-	 * @return tweet or null if not found
+	 * @param id status ID
+	 * @return status or null if not found
 	 */
 	@Nullable
-	public Tweet getTweet(long tweetId) {
-		String homeStr = Long.toString(homeId);
-		String[] args = {Long.toString(tweetId), homeStr, homeStr};
+	public Status getStatus(long id) {
+		synchronized (adapter) {
+			String homeStr = Long.toString(settings.getLogin().getId());
+			String[] args = {Long.toString(id), homeStr, homeStr};
 
-		SQLiteDatabase db = getDbRead();
-		Tweet result = null;
-		Cursor cursor = db.rawQuery(SINGLE_TWEET_QUERY, args);
-		if (cursor.moveToFirst())
-			result = getTweet(cursor);
-		cursor.close();
-		return result;
-	}
-
-	/**
-	 * get tweet replies
-	 *
-	 * @param tweetId Tweet ID
-	 * @return list of tweets
-	 */
-	public List<Tweet> getTweetReplies(long tweetId) {
-		String homeStr = Long.toString(homeId);
-		String[] args = {Long.toString(tweetId), homeStr, homeStr, Integer.toString(limit)};
-
-		SQLiteDatabase db = getDbRead();
-		List<Tweet> tweetList = new LinkedList<>();
-		Cursor cursor = db.rawQuery(REPLY_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				Tweet tweet = getTweet(cursor);
-				tweetList.add(tweet);
-			} while (cursor.moveToNext());
+			SQLiteDatabase db = adapter.getDbRead();
+			Status result = null;
+			Cursor cursor = db.rawQuery(SINGLE_STATUS_QUERY, args);
+			if (cursor.moveToFirst())
+				result = getStatus(cursor, db);
+			cursor.close();
+			return result;
 		}
-		cursor.close();
-		return tweetList;
 	}
 
 	/**
-	 * update tweet and author information
+	 * hide or unhide status
 	 *
-	 * @param tweet Tweet
+	 * @param id   ID of the reply
+	 * @param hide true to hide this status
 	 */
-	public void updateTweet(Tweet tweet) {
-		SQLiteDatabase db = getDbWrite();
-		updateTweet(tweet, db);
-		if (tweet.getEmbeddedTweet() != null)
-			updateTweet(tweet.getEmbeddedTweet(), db);
-		commit(db);
-	}
+	public void hideStatus(long id, boolean hide) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(id), Long.toString(settings.getLogin().getId())};
 
-	/**
-	 * remove tweet from database
-	 *
-	 * @param tweetId Tweet ID
-	 */
-	public void removeTweet(long tweetId) {
-		String[] args = {Long.toString(tweetId)};
-
-		SQLiteDatabase db = getDbWrite();
-		db.delete(TweetTable.NAME, TWEET_SELECT, args);
-		db.delete(FavoriteTable.NAME, FAVORITE_SELECT_TWEET, args);
-		commit(db);
-	}
-
-	/**
-	 * hide or unhide tweet reply
-	 *
-	 * @param replyId ID of the reply
-	 * @param hide    true to hide this tweet
-	 */
-	public void hideReply(long replyId, boolean hide) {
-		String[] args = {Long.toString(replyId), Long.toString(homeId)};
-
-		SQLiteDatabase db = getDbWrite();
-		int register = getTweetRegister(db, replyId);
-		if (hide)
-			register |= HIDDEN_MASK;
-		else
-			register &= ~HIDDEN_MASK;
-
-		ContentValues values = new ContentValues(3);
-		values.put(TweetRegisterTable.REGISTER, register);
-		db.update(TweetRegisterTable.NAME, values, TWEET_REG_SELECT, args);
-		commit(db);
-	}
-
-	/**
-	 * remove tweet from favorites
-	 *
-	 * @param tweet Tweet to remove from the favorites
-	 */
-	public void removeFavorite(Tweet tweet) {
-		String[] delArgs = {Long.toString(tweet.getId()), Long.toString(homeId)};
-
-		if (tweet.getEmbeddedTweet() != null) {
-			tweet = tweet.getEmbeddedTweet();
+			SQLiteDatabase db = adapter.getDbWrite();
+			int flags = getStatusFlags(db, id);
+			if (hide) {
+				flags |= StatusPropertiesTable.MASK_STATUS_HIDDEN;
+			} else {
+				flags &= ~StatusPropertiesTable.MASK_STATUS_HIDDEN;
+			}
+			ContentValues column = new ContentValues();
+			column.put(StatusPropertiesTable.FLAGS, flags);
+			db.update(StatusPropertiesTable.TABLE, column, STATUS_REG_SELECT, args);
+			adapter.commit();
 		}
-		SQLiteDatabase db = getDbWrite();
-		// get tweet register
-		int register = getTweetRegister(db, tweet.getId());
-		register &= ~FAV_MASK; // unset favorite flag
-		// update database
-		setTweetRegister(db, tweet, register);
-		db.delete(FavoriteTable.NAME, FAVORITE_SELECT, delArgs);
-		commit(db);
 	}
 
 	/**
-	 * Delete Direct Message
+	 * remove status from database
 	 *
-	 * @param id Direct Message ID
+	 * @param id status ID
 	 */
-	public void deleteMessage(long id) {
-		String[] messageId = {Long.toString(id)};
+	public void removeStatus(long id) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(id)};
 
-		SQLiteDatabase db = getDbWrite();
-		db.delete(MessageTable.NAME, MESSAGE_SELECT, messageId);
-		commit(db);
-	}
-
-	/**
-	 * Load trend List
-	 *
-	 * @param woeId Yahoo World ID
-	 * @return list of trends
-	 */
-	public List<Trend> getTrends(int woeId) {
-		String[] args = {Integer.toString(woeId)};
-		SQLiteDatabase db = getDbRead();
-		Cursor cursor = db.query(TrendTable.NAME, null, TREND_SELECT, args, null, null, TREND_ORDER);
-		List<Trend> trends = new LinkedList<>();
-		if (cursor.moveToFirst()) {
-			do {
-				trends.add(new TrendImpl(cursor));
-			} while (cursor.moveToNext());
+			SQLiteDatabase db = adapter.getDbWrite();
+			// remove constrained table entries first
+			db.delete(NotificationTable.TABLE, NOTIFICATION_STATUS_SELECT, args);
+			db.delete(FavoriteTable.TABLE, FAVORITE_SELECT_STATUS, args);
+			db.delete(BookmarkTable.TABLE, BOOKMARK_SELECT_STATUS, args);
+			// remove status from main table
+			db.delete(StatusTable.TABLE, STATUS_SELECT, args);
+			adapter.commit();
 		}
-		cursor.close();
-		return trends;
 	}
 
 	/**
-	 * load direct messages
+	 * remove status from database
 	 *
-	 * @return list of direct messages
+	 * @param id status ID
 	 */
-	public Directmessages getMessages() {
-		String homeIdStr = Long.toString(homeId);
-		String[] args = {homeIdStr, homeIdStr, Integer.toString(limit)};
-		Directmessages result = new Directmessages(null, null);
-		SQLiteDatabase db = getDbRead();
-		Map<Long, User> userCache = new TreeMap<>();
-		Cursor cursor = db.rawQuery(MESSAGE_QUERY, args);
-		if (cursor.moveToFirst()) {
-			do {
-				User sender, receiver;
-				DirectMessageImpl message = new DirectMessageImpl(cursor);
-				if (userCache.containsKey(message.getSenderId())) {
-					sender = userCache.get(message.getSenderId());
-				} else {
-					sender = getUser(message.getSenderId());
-					userCache.put(message.getSenderId(), sender);
-				}
-				if (userCache.containsKey(message.getReceiverId())) {
-					receiver = userCache.get(message.getReceiverId());
-				} else {
-					receiver = getUser(message.getReceiverId());
-					userCache.put(message.getReceiverId(), receiver);
-				}
-				if (sender != null && receiver != null) {
-					message.setSender(sender);
-					message.setReceiver(receiver);
-					result.add(message);
-				}
-			} while (cursor.moveToNext());
+	public void removeNotification(long id) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(id)};
+
+			SQLiteDatabase db = adapter.getDbWrite();
+			db.delete(NotificationTable.TABLE, NOTIFICATION_SELECT, args);
+			adapter.commit();
 		}
-		cursor.close();
-		return result;
 	}
 
 	/**
-	 * check if tweet exists in database
+	 * remove status from favorites
 	 *
-	 * @param id Tweet ID
+	 * @param status status to remove from the favorites
+	 */
+	public void removeFromFavorite(Status status) {
+		synchronized (adapter) {
+			String[] delArgs = {Long.toString(status.getId()), Long.toString(settings.getLogin().getId())};
+
+			if (status.getEmbeddedStatus() != null) {
+				status = status.getEmbeddedStatus();
+			}
+			SQLiteDatabase db = adapter.getDbWrite();
+			// get status flags
+			int flags = getStatusFlags(db, status.getId());
+			flags &= ~StatusPropertiesTable.MASK_STATUS_FAVORITED; // unset favorite flag
+			// update database
+			saveStatusFlags(db, status, flags);
+			// delete status entry from favorite table
+			db.delete(FavoriteTable.TABLE, FAVORITE_SELECT, delArgs);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * remove status from bookmarks
+	 *
+	 * @param status status to remove from the bookmarks
+	 */
+	public void removeFromBookmarks(Status status) {
+		synchronized (adapter) {
+			String[] delArgs = {Long.toString(status.getId()), Long.toString(settings.getLogin().getId())};
+
+			if (status.getEmbeddedStatus() != null) {
+				status = status.getEmbeddedStatus();
+			}
+			SQLiteDatabase db = adapter.getDbWrite();
+			// get status flags
+			int flags = getStatusFlags(db, status.getId());
+			flags &= ~StatusPropertiesTable.MASK_STATUS_BOOKMARKED; // unset bookmark flag
+			// update database
+			saveStatusFlags(db, status, flags);
+			// remove status entry from bookmark table
+			db.delete(BookmarkTable.TABLE, BOOKMARK_SELECT, delArgs);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * remove login information from database
+	 *
+	 * @param account account to remove
+	 */
+	public void removeLogin(Account account) {
+		synchronized (adapter) {
+			String[] accountArgs = {Long.toString(account.getId()), account.getHostname()};
+			String[] pushArgs = {StringUtils.getPushInstanceHash(account)};
+
+			SQLiteDatabase db = adapter.getDbWrite();
+			db.delete(AccountTable.TABLE, ACCOUNT_SELECTION, accountArgs);
+			db.delete(PushTable.TABLE, PUSH_SELECTION, pushArgs);
+			adapter.commit();
+		}
+	}
+
+	/**
+	 * check if status exists in database
+	 *
+	 * @param id status ID
 	 * @return true if found
 	 */
-	public boolean containsTweet(long id) {
-		SQLiteDatabase db = getDbRead();
-		return tweetExists(id, db);
+	public boolean containsStatus(long id) {
+		synchronized (adapter) {
+			String[] args = {Long.toString(id)};
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor c = db.query(StatusTable.TABLE, null, STATUS_SELECT, args, null, null, SINGLE_ITEM);
+			boolean result = c.moveToFirst();
+			c.close();
+			return result;
+		}
 	}
 
 	/**
-	 * remove user from mention results
+	 * remove user from notification results
 	 *
 	 * @param id   user ID
-	 * @param mute true remove user tweets from mention results
+	 * @param mute true remove user notifications
 	 */
 	public void muteUser(long id, boolean mute) {
-		SQLiteDatabase db = getDbWrite();
-		int register = getUserRegister(db, id);
-		if (mute) {
-			register |= EXCL_USR;
-		} else {
-			register &= ~EXCL_USR;
+		synchronized (adapter) {
+			SQLiteDatabase db = adapter.getDbWrite();
+			int flags = getUserFlags(db, id);
+			if (mute) {
+				flags |= UserPropertiesTable.MASK_USER_FILTERED;
+			} else {
+				flags &= ~UserPropertiesTable.MASK_USER_FILTERED;
+			}
+			saveUserFlags(db, id, flags);
+			adapter.commit();
 		}
-		setUserRegister(db, id, register);
-		commit(db);
 	}
 
 	/**
-	 * get tweet information from database
+	 * get all emojis
 	 *
-	 * @param cursor cursor containing tweet informations
-	 * @return tweet instance
+	 * @return list of emojis
 	 */
-	private Tweet getTweet(Cursor cursor) {
-		TweetImpl result = new TweetImpl(cursor, homeId);
-		// check if there is an embedded tweet
-		if (result.getEmbeddedTweetId() > 1)
-			result.addEmbeddedTweet(getTweet(result.getEmbeddedTweetId()));
+	public List<Emoji> getEmojis() {
+		synchronized (adapter) {
+			ArrayList<Emoji> result = new ArrayList<>();
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor c = db.query(EmojiTable.TABLE, null, null, null, null, null, null);
+			if (c.moveToFirst()) {
+				result.ensureCapacity(c.getCount());
+				do {
+					result.add(new DatabaseEmoji(c));
+				} while (c.moveToNext());
+			}
+			c.close();
+			return result;
+		}
+	}
+
+	/**
+	 * get wegb push subscription of an user
+	 *
+	 * @param account unique user url
+	 * @return web push associated with this account
+	 */
+	@Nullable
+	public WebPush getWebPush(Account account) {
+		synchronized (adapter) {
+			WebPush result = null;
+			String[] args = {StringUtils.getPushInstanceHash(account)};
+
+			SQLiteDatabase db = adapter.getDbRead();
+			Cursor c = db.query(PushTable.TABLE, DatabasePush.COLUMNS, PUSH_SELECTION, args, null, null, null);
+			if (c.moveToFirst()) {
+				result = new DatabasePush(c);
+			}
+			c.close();
+			return result;
+		}
+	}
+
+	/**
+	 * reset database tables
+	 * re-create database tables and keep all login and web push subscriptions
+	 */
+	public void resetDatabase() {
+		synchronized (adapter) {
+			// save logins first
+			List<Account> logins = getLogins();
+			List<WebPush> webPushs = getWebPushs();
+			// reset database
+			adapter.resetDatabase();
+			// restore saved logins
+			for (Account login : logins) {
+				saveLogin(login);
+			}
+			// restore web push subscription
+			for (WebPush webPush : webPushs) {
+				saveWebPush(webPush);
+			}
+		}
+	}
+
+	/**
+	 * get all web push subscriptions
+	 *
+	 * @return a list of all known webpush subscriptions
+	 */
+	private List<WebPush> getWebPushs() {
+		List<WebPush> result = new LinkedList<>();
+
+		SQLiteDatabase db = adapter.getDbRead();
+		Cursor c = db.query(PushTable.TABLE, DatabasePush.COLUMNS, null, null, null, null, null);
+		if (c.moveToFirst()) {
+			do {
+				result.add(new DatabasePush(c));
+			} while(c.moveToNext());
+		}
+		c.close();
 		return result;
 	}
 
 	/**
-	 * get user information from table
+	 * get status information from database
 	 *
-	 * @param userId Id of the user
-	 * @param db     SQLITE DB
-	 * @return user instance
+	 * @param cursor cursor containing status informations
+	 * @return status
+	 */
+	private Status getStatus(Cursor cursor, SQLiteDatabase db) {
+		Account login = settings.getLogin();
+		DatabaseStatus result = new DatabaseStatus(cursor, login);
+		setUserInformation(db, (DatabaseUser) result.getAuthor());
+		// check if there is an embedded status
+		if (result.getEmbeddedStatusId() != NO_ID) {
+			result.setEmbeddedStatus(getStatus(result.getEmbeddedStatusId()));
+		}
+		if (result.getPollId() != NO_ID) {
+			result.addPoll(getPoll(db, result.getPollId()));
+		}
+		if (result.getMediaKeys().length > 0) {
+			List<Media> mediaList = new LinkedList<>();
+			for (String mediaKey : result.getMediaKeys()) {
+				Media item = getMedia(db, mediaKey);
+				if (item != null) {
+					mediaList.add(item);
+				}
+			}
+			if (!mediaList.isEmpty()) {
+				result.addMedia(mediaList.toArray(new Media[0]));
+			}
+		}
+		if (result.getEmojiKeys().length > 0) {
+			List<Emoji> emojiList = new LinkedList<>();
+			for (String emojiKey : result.getEmojiKeys()) {
+				Emoji item = getEmoji(db, emojiKey);
+				if (item != null) {
+					emojiList.add(item);
+				}
+			}
+			if (!emojiList.isEmpty()) {
+				result.addEmojis(emojiList.toArray(new Emoji[0]));
+			}
+		}
+		if (result.getLocationId() != Location.NO_ID) {
+			Location location = getLocation(db, result.getLocationId());
+			if (location != null) {
+				result.addLocation(location);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * create a list of statuses from a cursor
+	 *
+	 * @param cursor cursor with statuses
+	 * @return status list
+	 */
+	private Statuses getStatuses(Cursor cursor, SQLiteDatabase db) {
+		Statuses statuses = new Statuses();
+		if (cursor.moveToFirst()) {
+			do {
+				Status status = getStatus(cursor, db);
+				statuses.add(status);
+			} while (cursor.moveToNext());
+		}
+		cursor.close();
+		return statuses;
+	}
+
+	/**
+	 * get status/message media
+	 *
+	 * @param key media key
+	 * @param db  database read instance
+	 * @return media item or null
 	 */
 	@Nullable
-	private User getUser(long userId, SQLiteDatabase db) {
-		String[] args = {Long.toString(userId)};
-		Cursor cursor = db.rawQuery(USER_TABLE, args);
-
-		User user = null;
-		if (cursor.moveToFirst())
-			user = new UserImpl(cursor, homeId);
-		cursor.close();
-		return user;
+	private Media getMedia(SQLiteDatabase db, String key) {
+		String[] args = {key};
+		Cursor c = db.query(MediaTable.TABLE, DatabaseMedia.COLUMNS, MEDIA_SELECT, args, null, null, null, SINGLE_ITEM);
+		Media result = null;
+		if (c.moveToFirst())
+			result = new DatabaseMedia(c);
+		c.close();
+		return result;
 	}
+
+	/**
+	 * get emoji information
+	 *
+	 * @param key emoji key
+	 * @param db  database read instance
+	 * @return emoji item or null
+	 */
+	@Nullable
+	private Emoji getEmoji(SQLiteDatabase db, String key) {
+		String[] args = {key};
+		Cursor c = db.query(EmojiTable.TABLE, DatabaseEmoji.PROJECTION, EMOJI_SELECT, args, null, null, null, SINGLE_ITEM);
+		Emoji result = null;
+		if (c.moveToFirst())
+			result = new DatabaseEmoji(c);
+		c.close();
+		return result;
+	}
+
+	/**
+	 * get user fields
+	 *
+	 * @param userId ID of the user to get the fields from
+	 * @return user field array or empty if not found
+	 */
+	private Field[] getFields(SQLiteDatabase db, long userId) {
+		String[] args = {Long.toString(userId)};
+		Cursor cursor = db.query(UserFieldTable.TABLE, DatabaseField.PROJECTION, FIELD_SELECT, args, null, null, null, null);
+		List<Field> result = new ArrayList<>();
+		if (cursor.moveToFirst()) {
+			do {
+				result.add(new DatabaseField(cursor));
+			} while (cursor.moveToNext());
+		}
+		cursor.close();
+		return result.toArray(new Field[0]);
+	}
+
+	/**
+	 * get status/message location
+	 *
+	 * @param db database read instance
+	 * @param id location ID
+	 * @return location item or null
+	 */
+	@Nullable
+	private Location getLocation(SQLiteDatabase db, long id) {
+		String[] args = {Long.toString(id)};
+		Cursor c = db.query(LocationTable.TABLE, DatabaseLocation.PROJECTION, LOCATION_SELECT, args, null, null, null, SINGLE_ITEM);
+		Location result = null;
+		if (c.moveToFirst())
+			result = new DatabaseLocation(c);
+		c.close();
+		return result;
+	}
+
+	/**
+	 * create database notification
+	 *
+	 * @param cursor database cursor containing notification columns
+	 * @param login  information about the current login
+	 * @return notification
+	 */
+	private Notification getNotification(Cursor cursor, Account login) {
+		DatabaseNotification notification = new DatabaseNotification(cursor, login);
+		switch (notification.getType()) {
+			case Notification.TYPE_FAVORITE:
+			case Notification.TYPE_REPOST:
+			case Notification.TYPE_MENTION:
+			case Notification.TYPE_POLL:
+			case Notification.TYPE_STATUS:
+			case Notification.TYPE_UPDATE:
+				Status status = getStatus(notification.getItemId());
+				notification.addStatus(status);
+				break;
+		}
+		return notification;
+	}
+
+	/**
+	 * set additional user information
+	 *
+	 * @param user user to set additional information
+	 */
+	private void setUserInformation(SQLiteDatabase db, DatabaseUser user) {
+		// set user emojis
+		if (user.getEmojiKeys().length > 0) {
+			List<Emoji> emojiList = new LinkedList<>();
+			for (String emojiKey : user.getEmojiKeys()) {
+				Emoji item = getEmoji(db, emojiKey);
+				if (item != null) {
+					emojiList.add(item);
+				}
+			}
+			if (!emojiList.isEmpty()) {
+				user.addEmojis(emojiList.toArray(new Emoji[0]));
+			}
+		}
+		// set user fields
+		user.addFields(getFields(db, user.getId()));
+	}
+
+	/**
+	 * get status flags or zero if status not found
+	 *
+	 * @param db database instance
+	 * @param id ID of the status
+	 * @return status flags
+	 */
+	private int getStatusFlags(SQLiteDatabase db, long id) {
+		String[] args = {Long.toString(id), Long.toString(settings.getLogin().getId())};
+
+		Cursor c = db.query(StatusPropertiesTable.TABLE, COLUMNS_REGISTER_STATUS, STATUS_REG_SELECT, args, null, null, null, SINGLE_ITEM);
+		int result = 0;
+		if (c.moveToFirst())
+			result = c.getInt(0);
+		c.close();
+		return result;
+	}
+
+	/**
+	 * get user register or zero if not found
+	 *
+	 * @param db database instance
+	 * @param id ID of the user
+	 * @return user flags
+	 */
+	private int getUserFlags(SQLiteDatabase db, long id) {
+		String[] args = {Long.toString(id), Long.toString(settings.getLogin().getId())};
+
+		Cursor c = db.query(UserPropertiesTable.TABLE, COLUMNS_REGISTER_USER, USER_REG_SELECT, args, null, null, null, SINGLE_ITEM);
+		int result = 0;
+		if (c.moveToFirst())
+			result = c.getInt(0);
+		c.close();
+		return result;
+	}
+
+	/**
+	 * get status poll
+	 *
+	 * @param db database instance
+	 * @param id ID of the user
+	 * @return poll instance
+	 */
+	@Nullable
+	private Poll getPoll(SQLiteDatabase db, long id) {
+		String[] args = {Long.toString(id)};
+
+		Cursor c = db.query(PollTable.TABLE, DatabasePoll.PROJECTION, POLL_SELECTION, args, null, null, null, SINGLE_ITEM);
+		DatabasePoll result = null;
+		if (c.moveToFirst())
+			result = new DatabasePoll(c);
+		c.close();
+		return result;
+	}
+
 
 	/**
 	 * store user information into database
@@ -720,334 +1452,393 @@ public class AppDatabase {
 	 * @param db   SQLITE DB
 	 * @param mode SQLITE mode {@link SQLiteDatabase#CONFLICT_IGNORE,SQLiteDatabase#CONFLICT_REPLACE}
 	 */
-	private void storeUser(User user, SQLiteDatabase db, int mode) {
-		int register = getUserRegister(db, user.getId());
-		if (user.isVerified())
-			register |= VER_MASK;
-		else
-			register &= ~VER_MASK;
-		if (user.isProtected())
-			register |= LCK_MASK;
-		else
-			register &= ~LCK_MASK;
-		if (user.followRequested())
-			register |= FRQ_MASK;
-		else
-			register &= ~FRQ_MASK;
-		if (user.hasDefaultProfileImage())
-			register |= DEF_IMG;
-		else
-			register &= ~DEF_IMG;
+	private void saveUser(User user, SQLiteDatabase db, int mode) {
+		int flags = getUserFlags(db, user.getId());
+		ContentValues column = new ContentValues();
+		if (user.isVerified()) {
+			flags |= UserPropertiesTable.MASK_USER_VERIFIED;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_VERIFIED;
+		}
+		if (user.isProtected()) {
+			flags |= UserPropertiesTable.MASK_USER_PRIVATE;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_PRIVATE;
+		}
+		if (user.hasDefaultProfileImage()) {
+			flags |= UserPropertiesTable.MASK_USER_DEFAULT_IMAGE;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_DEFAULT_IMAGE;
+		}
+		if (user.isDiscoverable()) {
+			flags |= UserPropertiesTable.MASK_USER_DISCOVERABLE;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_DISCOVERABLE;
+		}
+		if (user.isBot()) {
+			flags |= UserPropertiesTable.MASK_USER_BOT;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_BOT;
+		}
+		if (user.isGroup()) {
+			flags |= UserPropertiesTable.MASK_USER_GROUP;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_GROUP;
+		}
+		if (user.isIndexable()) {
+			flags |= UserPropertiesTable.MASK_USER_INDEXABLE;
+		} else {
+			flags &= ~UserPropertiesTable.MASK_USER_INDEXABLE;
+		}
+		if (user.getEmojis().length > 0) {
+			StringBuilder buf = new StringBuilder();
+			saveEmojis(user.getEmojis(), db);
+			for (Emoji emoji : user.getEmojis()) {
+				buf.append(emoji.getCode()).append(';');
+			}
+			String emojiKeys = buf.deleteCharAt(buf.length() - 1).toString();
+			column.put(UserTable.EMOJI, emojiKeys);
+		}
+		if (mode == SQLiteDatabase.CONFLICT_REPLACE) {
+			saveFields(user.getFields(), user.getId(), db);
+		}
+		column.put(UserTable.ID, user.getId());
+		column.put(UserTable.USERNAME, user.getUsername());
+		column.put(UserTable.SCREENNAME, user.getScreenname());
+		column.put(UserTable.IMAGE, user.getOriginalProfileImageUrl());
+		column.put(UserTable.DESCRIPTION, user.getDescription());
+		column.put(UserTable.LINK, user.getProfileUrl());
+		column.put(UserTable.LOCATION, user.getLocation());
+		column.put(UserTable.BANNER, user.getOriginalBannerImageUrl());
+		column.put(UserTable.SINCE, user.getTimestamp());
+		column.put(UserTable.FRIENDS, user.getFollowing());
+		column.put(UserTable.FOLLOWER, user.getFollower());
+		column.put(UserTable.STATUSES, user.getStatusCount());
+		column.put(UserTable.FAVORITS, user.getFavoriteCount());
 
-		ContentValues userColumn = new ContentValues(13);
-		userColumn.put(UserTable.ID, user.getId());
-		userColumn.put(UserTable.USERNAME, user.getUsername());
-		userColumn.put(UserTable.SCREENNAME, user.getScreenname());
-		userColumn.put(UserTable.IMAGE, user.getImageUrl());
-		userColumn.put(UserTable.DESCRIPTION, user.getDescription());
-		userColumn.put(UserTable.LINK, user.getProfileUrl());
-		userColumn.put(UserTable.LOCATION, user.getLocation());
-		userColumn.put(UserTable.BANNER, user.getBannerUrl());
-		userColumn.put(UserTable.SINCE, user.getCreatedAt());
-		userColumn.put(UserTable.FRIENDS, user.getFollowing());
-		userColumn.put(UserTable.FOLLOWER, user.getFollower());
-		userColumn.put(UserTable.TWEETS, user.getTweetCount());
-		userColumn.put(UserTable.FAVORS, user.getFavoriteCount());
-
-		db.insertWithOnConflict(UserTable.NAME, "", userColumn, mode);
-		setUserRegister(db, user.getId(), register);
+		db.insertWithOnConflict(UserTable.TABLE, "", column, mode);
+		saveUserFlags(db, user.getId(), flags);
 	}
 
-
 	/**
-	 * save tweet into database
+	 * save status into database
 	 *
-	 * @param tweet      Tweet information
-	 * @param tweetFlags predefined tweet status register or zero if there isn't one
-	 * @param db         SQLite database
+	 * @param status status information
+	 * @param flags  predefined status status flags or zero if there isn't one
+	 * @param db     SQLite database
 	 */
-	private void storeTweet(Tweet tweet, int tweetFlags, SQLiteDatabase db) {
-		User user = tweet.getAuthor();
-		Tweet rtStat = tweet.getEmbeddedTweet();
-		long rtId = -1L;
+	private void saveStatus(Status status, SQLiteDatabase db, int flags) {
+		User user = status.getAuthor();
+		Status rtStat = status.getEmbeddedStatus();
+		long rtId = NO_ID;
 		if (rtStat != null) {
-			storeTweet(rtStat, 0, db);
+			saveStatus(rtStat, db, 0);
 			rtId = rtStat.getId();
 		}
-		tweetFlags |= getTweetRegister(db, tweet.getId());
-		if (tweet.isFavorited()) {
-			tweetFlags |= FAV_MASK;
+		flags |= getStatusFlags(db, status.getId());
+		if (status.isFavorited()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_FAVORITED;
 		} else {
-			tweetFlags &= ~FAV_MASK;
+			flags &= ~StatusPropertiesTable.MASK_STATUS_FAVORITED;
 		}
-		if (tweet.isRetweeted()) {
-			tweetFlags |= RTW_MASK;
+		if (status.isReposted()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_REPOSTED;
 		} else {
-			tweetFlags &= ~RTW_MASK;
+			flags &= ~StatusPropertiesTable.MASK_STATUS_REPOSTED;
 		}
-		if (tweet.isSensitive()) {
-			tweetFlags |= MEDIA_SENS_MASK;
+		if (status.isSensitive()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_SENSITIVE;
 		} else {
-			tweetFlags &= ~MEDIA_SENS_MASK;
+			flags &= ~StatusPropertiesTable.MASK_STATUS_SENSITIVE;
 		}
-		if (tweet.getMediaType() == Tweet.MEDIA_PHOTO) {
-			tweetFlags |= MEDIA_IMAGE_MASK;
-		} else if (tweet.getMediaType() == Tweet.MEDIA_VIDEO) {
-			tweetFlags |= MEDIA_VIDEO_MASK;
-		} else if (tweet.getMediaType() == Tweet.MEDIA_GIF) {
-			tweetFlags |= MEDIA_ANGIF_MASK;
+		if (status.isSpoiler()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_SPOILER;
+		} else {
+			flags &= ~StatusPropertiesTable.MASK_STATUS_SPOILER;
 		}
-		ContentValues tweetUpdate = new ContentValues(16);
-		tweetUpdate.put(TweetTable.MEDIA, getMediaLinks(tweet));
-		tweetUpdate.put(TweetTable.ID, tweet.getId());
-		tweetUpdate.put(TweetTable.USER, user.getId());
-		tweetUpdate.put(TweetTable.SINCE, tweet.getTimestamp());
-		tweetUpdate.put(TweetTable.TWEET, tweet.getText());
-		tweetUpdate.put(TweetTable.EMBEDDED, rtId);
-		tweetUpdate.put(TweetTable.SOURCE, tweet.getSource());
-		tweetUpdate.put(TweetTable.REPLYTWEET, tweet.getRepliedTweetId());
-		tweetUpdate.put(TweetTable.RETWEET, tweet.getRetweetCount());
-		tweetUpdate.put(TweetTable.FAVORITE, tweet.getFavoriteCount());
-		tweetUpdate.put(TweetTable.REPLYUSER, tweet.getRepliedUserId());
-		tweetUpdate.put(TweetTable.PLACE, tweet.getLocationName());
-		tweetUpdate.put(TweetTable.COORDINATE, tweet.getLocationCoordinates());
-		tweetUpdate.put(TweetTable.REPLYUSER, tweet.getRepliedUserId());
-		tweetUpdate.put(TweetTable.REPLYNAME, tweet.getReplyName());
+		if (status.isBookmarked()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_BOOKMARKED;
+		} else {
+			flags &= ~StatusPropertiesTable.MASK_STATUS_BOOKMARKED;
+		}
+		if (status.isPinned()) {
+			flags |= StatusPropertiesTable.MASK_STATUS_PINNED;
+		} else {
+			flags &= ~StatusPropertiesTable.MASK_STATUS_PINNED;
+		}
+		switch (status.getVisibility()) {
+			case Status.VISIBLE_DIRECT:
+				flags |= StatusPropertiesTable.MASK_STATUS_VISIBILITY_DIRECT;
+				break;
 
-		db.insertWithOnConflict(TweetTable.NAME, "", tweetUpdate, CONFLICT_REPLACE);
+			case Status.VISIBLE_UNLISTED:
+				flags |= StatusPropertiesTable.MASK_STATUS_VISIBILITY_UNLISTED;
+				break;
 
-		storeUser(user, db, CONFLICT_IGNORE);
-		setTweetRegister(db, tweet, tweetFlags);
+			case Status.VISIBLE_PRIVATE:
+				flags |= StatusPropertiesTable.MASK_STATUS_VISIBILITY_PRIVATE;
+				break;
+
+			default:
+				flags &= ~StatusPropertiesTable.MASK_STATUS_VISIBILITY_DIRECT;
+		}
+		ContentValues column = new ContentValues();
+		column.put(StatusTable.ID, status.getId());
+		column.put(StatusTable.USER, user.getId());
+		column.put(StatusTable.TIME, status.getTimestamp());
+		column.put(StatusTable.TEXT, status.getText());
+		column.put(StatusTable.EMBEDDED, rtId);
+		column.put(StatusTable.SOURCE, status.getSource());
+		column.put(StatusTable.URL, status.getUrl());
+		column.put(StatusTable.REPLYSTATUS, status.getRepliedStatusId());
+		column.put(StatusTable.REPOST, status.getRepostCount());
+		column.put(StatusTable.FAVORITE, status.getFavoriteCount());
+		column.put(StatusTable.REPLY, status.getReplyCount());
+		column.put(StatusTable.REPLYUSER, status.getRepliedUserId());
+		column.put(StatusTable.REPLYUSER, status.getRepliedUserId());
+		column.put(StatusTable.REPLYNAME, status.getReplyName());
+		column.put(StatusTable.LANGUAGE, status.getLanguage());
+		column.put(StatusTable.EDITED_AT, status.editedAt());
+		column.put(StatusTable.MENTIONS, status.getUserMentions());
+		if (status.getLocation() != null && status.getLocation().getId() != 0L) {
+			column.put(StatusTable.LOCATION, status.getLocation().getId());
+			saveLocation(status.getLocation(), db);
+		} else {
+			column.put(StatusTable.LOCATION, 0L);
+		}
+		if (status.getMedia().length > 0) {
+			StringBuilder buf = new StringBuilder();
+			saveMedia(status.getMedia(), db);
+			for (Media media : status.getMedia()) {
+				buf.append(media.getKey()).append(';');
+			}
+			String mediaKeys = buf.deleteCharAt(buf.length() - 1).toString();
+			column.put(StatusTable.MEDIA, mediaKeys);
+		}
+		if (status.getEmojis().length > 0) {
+			StringBuilder buf = new StringBuilder();
+			saveEmojis(status.getEmojis(), db);
+			for (Emoji emoji : status.getEmojis()) {
+				buf.append(emoji.getCode()).append(';');
+			}
+			String emojiKeys = buf.deleteCharAt(buf.length() - 1).toString();
+			column.put(StatusTable.EMOJI, emojiKeys);
+		}
+		if (status.getPoll() != null) {
+			savePoll(status.getPoll(), db);
+			column.put(StatusTable.POLL, status.getPoll().getId());
+		}
+		db.insertWithOnConflict(StatusTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+		saveUser(user, db, SQLiteDatabase.CONFLICT_IGNORE);
+		saveStatusFlags(db, status, flags);
 	}
 
 	/**
-	 * updates existing tweet
+	 * save media information
 	 *
-	 * @param tweet update of the tweet
-	 * @param db    database instance
+	 * @param medias media to save
+	 * @param db     database write instance
 	 */
-	private void updateTweet(Tweet tweet, SQLiteDatabase db) {
-		String[] tweetIdArg = {Long.toString(tweet.getId())};
-		String[] userIdArg = {Long.toString(tweet.getAuthor().getId())};
-
-		User user = tweet.getAuthor();
-		int register = getTweetRegister(db, tweet.getId());
-		if (tweet.isRetweeted())
-			register |= RTW_MASK;
-		else
-			register &= ~RTW_MASK;
-		if (tweet.isFavorited())
-			register |= FAV_MASK;
-		else
-			register &= ~FAV_MASK;
-
-		ContentValues tweetColumn = new ContentValues(6);
-		tweetColumn.put(TweetTable.TWEET, tweet.getText());
-		tweetColumn.put(TweetTable.RETWEET, tweet.getRetweetCount());
-		tweetColumn.put(TweetTable.FAVORITE, tweet.getFavoriteCount());
-		tweetColumn.put(TweetTable.REPLYNAME, tweet.getReplyName());
-		tweetColumn.put(TweetTable.MEDIA, getMediaLinks(tweet));
-
-		ContentValues userColumn = new ContentValues(9);
-		userColumn.put(UserTable.USERNAME, user.getUsername());
-		userColumn.put(UserTable.SCREENNAME, user.getScreenname());
-		userColumn.put(UserTable.IMAGE, user.getImageUrl());
-		userColumn.put(UserTable.DESCRIPTION, user.getDescription());
-		userColumn.put(UserTable.LINK, user.getProfileUrl());
-		userColumn.put(UserTable.LOCATION, user.getLocation());
-		userColumn.put(UserTable.BANNER, user.getBannerUrl());
-		userColumn.put(UserTable.FRIENDS, user.getFollowing());
-		userColumn.put(UserTable.FOLLOWER, user.getFollower());
-
-		db.update(TweetTable.NAME, tweetColumn, TWEET_SELECT, tweetIdArg);
-		db.update(UserTable.NAME, userColumn, USER_SELECT, userIdArg);
-		setTweetRegister(db, tweet, register);
+	private void saveMedia(Media[] medias, SQLiteDatabase db) {
+		for (Media media : medias) {
+			ContentValues column = new ContentValues();
+			column.put(MediaTable.KEY, media.getKey());
+			column.put(MediaTable.URL, media.getUrl());
+			column.put(MediaTable.PREVIEW, media.getPreviewUrl());
+			column.put(MediaTable.TYPE, media.getMediaType());
+			db.insertWithOnConflict(MediaTable.TABLE, "", column, SQLiteDatabase.CONFLICT_IGNORE);
+		}
 	}
 
 	/**
-	 * Store Tweet into favorite table of a user
+	 * save media information
 	 *
-	 * @param tweetId ID of the favored tweet
-	 * @param ownerId ID of the favorite list owner
-	 * @param db      database instance
+	 * @param emojis emojis to save
+	 * @param db     database write instance
 	 */
-	private void storeFavorite(long tweetId, long ownerId, SQLiteDatabase db) {
-		ContentValues favTable = new ContentValues(2);
-		favTable.put(FavoriteTable.TWEETID, tweetId);
-		favTable.put(FavoriteTable.FAVORITEDBY, ownerId);
-		db.insertWithOnConflict(FavoriteTable.NAME, "", favTable, CONFLICT_REPLACE);
+	private void saveEmojis(Emoji[] emojis, SQLiteDatabase db) {
+		for (Emoji emoji : emojis) {
+			ContentValues column = new ContentValues();
+			column.put(EmojiTable.CODE, emoji.getCode());
+			column.put(EmojiTable.URL, emoji.getUrl());
+			column.put(EmojiTable.CATEGORY, emoji.getCategory());
+			db.insertWithOnConflict(EmojiTable.TABLE, "", column, SQLiteDatabase.CONFLICT_IGNORE);
+		}
 	}
 
 	/**
-	 * clear old favorites from table
+	 * save user fields
+	 *
+	 * @param fields array of user fields
+	 * @param userId ID of the user
+	 */
+	private void saveFields(Field[] fields, long userId, SQLiteDatabase db) {
+		// delete previous user fields
+		db.delete(UserFieldTable.TABLE, FIELD_SELECT, new String[]{Long.toString(userId)});
+		// save new user fields
+		for (Field field : fields) {
+			ContentValues column = new ContentValues();
+			String[] args = {Long.toString(userId), field.getKey()};
+			column.put(UserFieldTable.KEY, field.getKey());
+			column.put(UserFieldTable.VALUE, field.getValue());
+			column.put(UserFieldTable.TIMESTAMP, field.getTimestamp());
+			column.put(UserFieldTable.USER, userId);
+			// delete old rows
+			db.delete(UserFieldTable.TABLE, FIELD_KEY_SELECT, args);
+			// set new entries
+			db.insertWithOnConflict(UserFieldTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+		}
+	}
+
+	/**
+	 * save location information
+	 *
+	 * @param location location information to save
+	 * @param db       database write instance
+	 */
+	private void saveLocation(Location location, SQLiteDatabase db) {
+		ContentValues column = new ContentValues();
+		column.put(LocationTable.ID, location.getId());
+		column.put(LocationTable.FULLNAME, location.getFullName());
+		column.put(LocationTable.COORDINATES, location.getCoordinates());
+		column.put(LocationTable.COUNTRY, location.getCountry());
+		column.put(LocationTable.PLACE, location.getPlace());
+		db.insertWithOnConflict(LocationTable.TABLE, "", column, SQLiteDatabase.CONFLICT_IGNORE);
+	}
+
+	/**
+	 * save status poll
+	 *
+	 * @param poll poll to save
+	 * @param db   database instance
+	 */
+	private void savePoll(Poll poll, SQLiteDatabase db) {
+		ContentValues column = new ContentValues();
+		StringBuilder buf = new StringBuilder();
+		for (PollOption option : poll.getOptions()) {
+			buf.append(option.getTitle()).append(';');
+		}
+		if (buf.length() > 0) {
+			buf.deleteCharAt(buf.length() - 1);
+		}
+		column.put(PollTable.ID, poll.getId());
+		column.put(PollTable.EXPIRATION, poll.getEndTime());
+		column.put(PollTable.OPTIONS, buf.toString());
+		db.insertWithOnConflict(PollTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
+	}
+
+	/**
+	 * set register of a status. Update if an entry exists
 	 *
 	 * @param db     database instance
-	 * @param userId ID of the favorite list owner
+	 * @param status status
+	 * @param flags  status flags
 	 */
-	private void removeOldFavorites(SQLiteDatabase db, long userId) {
-		String[] delArgs = {Long.toString(userId)};
-		db.delete(FavoriteTable.NAME, FAVORITE_SELECT_OWNER, delArgs);
-	}
+	private void saveStatusFlags(SQLiteDatabase db, Status status, int flags) {
+		String[] args = {Long.toString(status.getId()), Long.toString(settings.getLogin().getId())};
 
-	/**
-	 * store direct message
-	 *
-	 * @param message direct message information
-	 * @param db      database instance
-	 */
-	private void storeMessage(DirectMessage message, SQLiteDatabase db) {
-		// store message information
-		ContentValues messageColumn = new ContentValues(6);
-		messageColumn.put(MessageTable.ID, message.getId());
-		messageColumn.put(MessageTable.SINCE, message.getTimestamp());
-		messageColumn.put(MessageTable.FROM, message.getSender().getId());
-		messageColumn.put(MessageTable.TO, message.getReceiver().getId());
-		messageColumn.put(MessageTable.MESSAGE, message.getText());
-		if (message.getMedia() != null)
-			messageColumn.put(MessageTable.MEDIA, message.getMedia().toString());
-		db.insertWithOnConflict(MessageTable.NAME, "", messageColumn, CONFLICT_IGNORE);
-		// store user information
-		storeUser(message.getSender(), db, CONFLICT_IGNORE);
-		storeUser(message.getReceiver(), db, CONFLICT_IGNORE);
-	}
+		ContentValues column = new ContentValues();
+		column.put(StatusPropertiesTable.FLAGS, flags);
+		column.put(StatusPropertiesTable.REPOST_ID, status.getRepostId());
+		column.put(StatusPropertiesTable.STATUS, status.getId());
+		column.put(StatusPropertiesTable.OWNER, settings.getLogin().getId());
 
-	/**
-	 * get tweet register of a tweet or zero if tweet was not found
-	 *
-	 * @param db      database instance
-	 * @param tweetID ID of the tweet
-	 * @return tweet register
-	 */
-	private int getTweetRegister(SQLiteDatabase db, long tweetID) {
-		String[] args = {Long.toString(tweetID), Long.toString(homeId)};
-
-		Cursor c = db.query(TweetRegisterTable.NAME, TWEET_REG_COLUMN, TWEET_REG_SELECT, args, null, null, null, SINGLE_ITEM);
-		int result = 0;
-		if (c.moveToFirst())
-			result = c.getInt(0);
-		c.close();
-		return result;
-	}
-
-	/**
-	 * set tweet register of a tweet. if an entry exists, update it
-	 *
-	 * @param db       database instance
-	 * @param tweet    Tweet
-	 * @param register tweet register
-	 */
-	public void setTweetRegister(SQLiteDatabase db, Tweet tweet, int register) {
-		String[] args = {Long.toString(tweet.getId()), Long.toString(homeId)};
-
-		ContentValues values = new ContentValues(4);
-		values.put(TweetRegisterTable.REGISTER, register);
-		values.put(TweetRegisterTable.RETWEETUSER, tweet.getRetweetId());
-		values.put(TweetRegisterTable.ID, tweet.getId());
-		values.put(TweetRegisterTable.OWNER, homeId);
-
-		int cnt = db.update(TweetRegisterTable.NAME, values, TWEET_REG_SELECT, args);
-		if (cnt == 0) {
+		int count = db.update(StatusPropertiesTable.TABLE, column, STATUS_REG_SELECT, args);
+		if (count == 0) {
 			// create new entry if there isn't one
-			db.insert(TweetRegisterTable.NAME, null, values);
+			db.insert(StatusPropertiesTable.TABLE, "", column);
 		}
-	}
-
-	/**
-	 * get user register or zero if not found
-	 *
-	 * @param db     database instance
-	 * @param userID ID of the user
-	 * @return user flags
-	 */
-	private int getUserRegister(SQLiteDatabase db, long userID) {
-		String[] args = {Long.toString(userID), Long.toString(homeId)};
-
-		Cursor c = db.query(UserRegisterTable.NAME, USER_REG_COLUMN, USER_REG_SELECT, args, null, null, null, SINGLE_ITEM);
-		int result = 0;
-		if (c.moveToFirst())
-			result = c.getInt(0);
-		c.close();
-		return result;
 	}
 
 	/**
 	 * set user register. If entry exists, update it.
 	 *
-	 * @param db       database instance
-	 * @param id       User ID
-	 * @param register tweet register
+	 * @param db    database instance
+	 * @param id    User ID
+	 * @param flags status flags
 	 */
-	public void setUserRegister(SQLiteDatabase db, long id, int register) {
-		String[] args = {Long.toString(id), Long.toString(homeId)};
+	private void saveUserFlags(SQLiteDatabase db, long id, int flags) {
+		String[] args = {Long.toString(id), Long.toString(settings.getLogin().getId())};
 
-		ContentValues values = new ContentValues(3);
-		values.put(UserRegisterTable.ID, id);
-		values.put(UserRegisterTable.OWNER, homeId);
-		values.put(UserRegisterTable.REGISTER, register);
+		ContentValues column = new ContentValues();
+		column.put(UserPropertiesTable.USER, id);
+		column.put(UserPropertiesTable.OWNER, settings.getLogin().getId());
+		column.put(UserPropertiesTable.REGISTER, flags);
 
-		int cnt = db.update(UserRegisterTable.NAME, values, USER_REG_SELECT, args);
+		int cnt = db.update(UserPropertiesTable.TABLE, column, USER_REG_SELECT, args);
 		if (cnt == 0) {
-			// create new entry if there isn't one
-			db.insert(UserRegisterTable.NAME, null, values);
+			// create new entry if there isn't an entry
+			db.insert(UserPropertiesTable.TABLE, "", column);
 		}
 	}
 
 	/**
-	 * check if tweet exists in database
+	 * store status ID to the favorite table
 	 *
-	 * @param id Tweet ID
-	 * @param db database instance
-	 * @return true if found
+	 * @param statusId ID of the status
+	 * @param ownerId  ID of the list owner
+	 * @param db       database instance
 	 */
-	private boolean tweetExists(long id, SQLiteDatabase db) {
-		String[] args = {Long.toString(id)};
-
-		Cursor c = db.query(TweetTable.NAME, null, TWEET_SELECT, args, null, null, SINGLE_ITEM);
-		boolean result = c.moveToFirst();
-		c.close();
-		return result;
+	private void saveFavorite(long statusId, long ownerId, SQLiteDatabase db) {
+		ContentValues column = new ContentValues();
+		column.put(FavoriteTable.ID, statusId);
+		column.put(FavoriteTable.OWNER, ownerId);
+		db.insertWithOnConflict(FavoriteTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
 	}
 
 	/**
-	 * Get SQLite instance for reading database
+	 * store status ID to the bookmark table
 	 *
-	 * @return SQLite instance
+	 * @param statusId ID of the status
+	 * @param ownerId  ID of the list owner
+	 * @param db       database instance
 	 */
-	private synchronized SQLiteDatabase getDbRead() {
-		return adapter.getDatabase();
+	private void saveBookmark(long statusId, long ownerId, SQLiteDatabase db) {
+		ContentValues column = new ContentValues();
+		column.put(BookmarkTable.ID, statusId);
+		column.put(BookmarkTable.OWNER, ownerId);
+		db.insertWithOnConflict(BookmarkTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
 	}
 
 	/**
-	 * GET SQLite instance for writing database
+	 * save instance information
 	 *
-	 * @return SQLite instance
+	 * @param instance instance information
+	 * @param db       database instance
 	 */
-	private synchronized SQLiteDatabase getDbWrite() {
-		SQLiteDatabase db = adapter.getDatabase();
-		db.beginTransaction();
-		return db;
-	}
-
-	/**
-	 * Commit changes and close Database
-	 *
-	 * @param db database instance
-	 */
-	private synchronized void commit(SQLiteDatabase db) {
-		db.setTransactionSuccessful();
-		db.endTransaction();
-	}
-
-	/**
-	 * create string where media links are separated by ' ; '
-	 *
-	 * @param tweet tweet information
-	 * @return String of media links
-	 */
-	private String getMediaLinks(Tweet tweet) {
-		StringBuilder media = new StringBuilder();
-		for (Uri link : tweet.getMediaUris())
-			media.append(link.toString()).append(";");
-		return media.toString();
+	private void saveInstance(Instance instance, SQLiteDatabase db) {
+		ContentValues column = new ContentValues();
+		int flags = 0;
+		if (instance.isTranslationSupported())
+			flags |= DatabaseInstance.MASK_TRANSLATION;
+		StringBuilder mimeTypes = new StringBuilder();
+		for (String mimeType : instance.getSupportedFormats()) {
+			mimeTypes.append(mimeType).append(';');
+		}
+		if (mimeTypes.length() > 0) {
+			mimeTypes.deleteCharAt(mimeTypes.length() - 1);
+		}
+		column.put(InstanceTable.DOMAIN, instance.getDomain());
+		column.put(InstanceTable.TIMESTAMP, instance.getTimestamp());
+		column.put(InstanceTable.TITLE, instance.getTitle());
+		column.put(InstanceTable.VERSION, instance.getVersion());
+		column.put(InstanceTable.DESCRIPTION, instance.getDescription());
+		column.put(InstanceTable.FLAGS, flags);
+		column.put(InstanceTable.TAG_LIMIT, instance.getTagFollowLimit());
+		column.put(InstanceTable.STATUS_MAX_CHAR, instance.getStatusCharacterLimit());
+		column.put(InstanceTable.IMAGE_LIMIT, instance.getImageLimit());
+		column.put(InstanceTable.VIDEO_LIMIT, instance.getVideoLimit());
+		column.put(InstanceTable.GIF_LIMIT, instance.getGifLimit());
+		column.put(InstanceTable.AUDIO_LIMIT, instance.getAudioLimit());
+		column.put(InstanceTable.OPTIONS_LIMIT, instance.getPollOptionsLimit());
+		column.put(InstanceTable.OPTION_MAX_CHAR, instance.getPollOptionCharacterLimit());
+		column.put(InstanceTable.MIME_TYPES, mimeTypes.toString());
+		column.put(InstanceTable.IMAGE_SIZE, instance.getImageSizeLimit());
+		column.put(InstanceTable.VIDEO_SIZE, instance.getVideoSizeLimit());
+		column.put(InstanceTable.GIF_SIZE, instance.getGifSizeLimit());
+		column.put(InstanceTable.AUDIO_SIZE, instance.getAudioSizeLimit());
+		column.put(InstanceTable.POLL_MIN_DURATION, instance.getMinPollDuration());
+		column.put(InstanceTable.POLL_MAX_DURATION, instance.getMaxPollDuration());
+		db.insertWithOnConflict(InstanceTable.TABLE, "", column, SQLiteDatabase.CONFLICT_REPLACE);
 	}
 }

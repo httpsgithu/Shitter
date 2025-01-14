@@ -2,48 +2,72 @@
 <resources>
 
 	<style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
-		<item name="colorAccent">@android:color/white</item>
+		<item name="android:colorAccent">@android:color/white</item>
 		<item name="android:colorBackground">@color/background</item>
 		<item name="android:navigationBarColor">@android:color/black</item>
 		<item name="android:windowAnimationStyle">@style/TransactionPending</item>
-		<item name="android:windowTranslucentStatus">true</item>
+		<item name="android:windowTranslucentStatus">false</item>
 		<item name="android:textAllCaps">false</item>
 	</style>
 
 	<style name="Transparency" parent="AppTheme">
 		<item name="android:windowIsTranslucent">true</item>
-		<item name="android:windowBackground">@android:color/transparent</item>
-		<item name="android:colorBackground">@android:color/transparent</item>
 	</style>
 
 	<style name="TransparencyDim" parent="Transparency">
 		<item name="android:backgroundDimEnabled">true</item>
 	</style>
 
-	<style name="AppInfoDialog" parent="Theme.AppCompat.Dialog.Alert">
-		<item name="android:background">@android:color/white</item>
-		<item name="android:textColor">@android:color/black</item>
-		<item name="android:textColorLink">@android:color/holo_blue_dark</item>
-		<item name="android:colorBackground">@color/bright_transparent</item>
+	<style name="DefaultDialog" parent="Theme.AppCompat.Dialog">
+		<item name="android:windowMinWidthMinor">90%</item>
+		<item name="android:windowMinWidthMajor">60%</item>
+		<item name="android:windowNoTitle">true</item>
+		<item name="android:windowCloseOnTouchOutside">false</item>
 		<item name="android:backgroundDimEnabled">true</item>
 	</style>
 
-	<style name="LicenseDialog" parent="Theme.AppCompat.Dialog.Alert">
+	<style name="MetaDialog" parent="DefaultDialog">
+		<item name="android:windowMinWidthMinor">60%</item>
+		<item name="android:windowMinWidthMajor">40%</item>
+	</style>
+
+	<style name="StatusPrefDialog" parent="DefaultDialog">
+		<item name="android:windowCloseOnTouchOutside">true</item>
+	</style>
+
+	<style name="AppInfoDialog" parent="DefaultDialog">
+		<item name="android:windowCloseOnTouchOutside">true</item>
+	</style>
+
+	<style name="LicenseDialog" parent="DefaultDialog">
 		<item name="android:background">@android:color/white</item>
 		<item name="android:textColor">@android:color/black</item>
 		<item name="android:textSize">@dimen/license_textsize</item>
-		<item name="android:backgroundDimEnabled">true</item>
 	</style>
 
-	<style name="ConfirmDialog" parent="Theme.AppCompat.Dialog.Alert">
-		<item name="android:background">@android:color/transparent</item>
-		<item name="android:backgroundDimEnabled">true</item>
-	</style>
-
-	<style name="LoadingDialog">
+	<style name="LoadingDialog" parent="DefaultDialog">
 		<item name="android:windowBackground">@android:color/transparent</item>
 		<item name="android:background">@android:color/transparent</item>
+
+	</style>
+
+	<style name="ConfirmDialog" parent="DefaultDialog">
+		<item name="android:background">@android:color/transparent</item>
+	</style>
+
+	<style name="AudioDialog" parent="DefaultDialog">
+		<item name="android:background">@color/player_control</item>
+		<item name="android:windowMinWidthMajor">95%</item>
+	</style>
+
+	<style name="EmojiPickerDialog" parent="Theme.Design.Light.BottomSheetDialog">
+		<item name="android:windowIsTranslucent">true</item>
+		<item name="android:windowContentOverlay">@null</item>
+		<item name="android:colorBackground">@android:color/transparent</item>
 		<item name="android:backgroundDimEnabled">true</item>
+		<item name="android:backgroundDimAmount">0.3</item>
+		<item name="android:windowFrame">@null</item>
+		<item name="android:windowIsFloating">true</item>
 	</style>
 
 	<!-- activity enter/exit animations -->
@@ -83,8 +107,8 @@
 	<style name="CardViewStyle" parent="CardView">
 		<item name="cardPreventCornerOverlap">false</item>
 		<item name="cardUseCompatPadding">true</item>
-		<item name="cardCornerRadius">2dp</item>
-		<item name="cardElevation">2dp</item>
+		<item name="cardCornerRadius">1dp</item>
+		<item name="cardElevation">1.5dp</item>
 	</style>
 
 </resources>

@@ -5,19 +5,26 @@
 	<item
 		android:id="@+id/new_search"
 		android:icon="@drawable/search"
-		android:title="@string/menu_open_twitter_search"
+		android:title="@string/menu_open_search"
 		app:actionViewClass="androidx.appcompat.widget.SearchView"
 		app:showAsAction="always|collapseActionView" />
 
 	<item
-		android:id="@+id/search_tweet"
-		android:icon="@drawable/tweet"
-		android:title="@string/menu_tweet"
+		android:id="@+id/search_status"
+		android:icon="@drawable/post"
+		android:title="@string/menu_status"
 		app:showAsAction="ifRoom" />
+
+	<item
+		android:id="@+id/search_tag"
+		android:title="@string/menu_tag_follow"
+		app:showAsAction="never"
+		android:visible="false" />
 
 	<item
 		android:id="@+id/search_filter"
 		android:title="@string/menu_search_filter"
-		android:checkable="true" />
+		android:checkable="true"
+		app:showAsAction="never" />
 
 </menu>

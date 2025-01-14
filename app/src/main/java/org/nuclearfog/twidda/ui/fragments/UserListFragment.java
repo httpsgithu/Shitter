@@ -1,76 +1,71 @@
 package org.nuclearfog.twidda.ui.fragments;
 
-import static android.os.AsyncTask.Status.RUNNING;
-import static org.nuclearfog.twidda.backend.async.ListLoader.NO_CURSOR;
-import static org.nuclearfog.twidda.ui.activities.ProfileActivity.KEY_PROFILE_DATA;
-import static org.nuclearfog.twidda.ui.activities.UserlistActivity.KEY_LIST_DATA;
-
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.nuclearfog.twidda.adapter.UserlistAdapter;
-import org.nuclearfog.twidda.adapter.UserlistAdapter.ListClickListener;
-import org.nuclearfog.twidda.backend.async.ListLoader;
-import org.nuclearfog.twidda.backend.lists.UserLists;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler;
-import org.nuclearfog.twidda.model.User;
+import org.nuclearfog.twidda.backend.async.AsyncExecutor.AsyncCallback;
+import org.nuclearfog.twidda.backend.async.UserlistLoader;
+import org.nuclearfog.twidda.backend.utils.ErrorUtils;
 import org.nuclearfog.twidda.model.UserList;
-import org.nuclearfog.twidda.ui.activities.ProfileActivity;
+import org.nuclearfog.twidda.model.lists.UserLists;
 import org.nuclearfog.twidda.ui.activities.UserlistActivity;
+import org.nuclearfog.twidda.ui.adapter.recyclerview.UserlistAdapter;
+import org.nuclearfog.twidda.ui.adapter.recyclerview.UserlistAdapter.ListClickListener;
 
 /**
  * Fragment class to show userlists
  *
  * @author nuclearfog
  */
-public class UserListFragment extends ListFragment implements ListClickListener {
+public class UserListFragment extends ListFragment implements ListClickListener, AsyncCallback<UserlistLoader.Result>, ActivityResultCallback<ActivityResult> {
 
 	/**
 	 * Key for the owner ID
 	 * value type is Long
 	 */
-	public static final String KEY_FRAG_LIST_OWNER_ID = "list_owner_id";
-
-	/**
-	 * key for the owner screenname
-	 * alternative to {@link #KEY_FRAG_LIST_OWNER_ID}
-	 * value type is String
-	 */
-	public static final String KEY_FRAG_LIST_OWNER_NAME = "list_owner_name";
+	public static final String KEY_ID = "userlist_owner_id";
 
 	/**
 	 * key to define the type of the list
-	 * {@link #LIST_USER_OWNS,#LIST_USER_SUBSCR_TO}
+	 * {@link #MODE_OWNERSHIP ,#LIST_USER_SUBSCR_TO}
 	 */
-	public static final String KEY_FRAG_LIST_LIST_TYPE = "list_type";
+	public static final String KEY_MODE = "userlist_type";
+
+	/**
+	 * internal Bundle key used to save adapter items
+	 * value type is {@link UserLists}
+	 */
+	private static final String KEY_SAVE = "userlist_save";
 
 	/**
 	 * value to show all user lists owned by a specified user
 	 *
-	 * @see #KEY_FRAG_LIST_LIST_TYPE
+	 * @see #KEY_MODE
 	 */
-	public static final int LIST_USER_OWNS = 0x5F36F90D;
+	public static final int MODE_OWNERSHIP = 0x5F36F90D;
 
 	/**
 	 * value to show all user lists the specified user is added to
 	 *
-	 * @see #KEY_FRAG_LIST_LIST_TYPE
+	 * @see #KEY_MODE
 	 */
-	public static final int LIST_USER_SUBSCR_TO = 0xAA7386AA;
+	public static final int MODE_MEMBERSHIP = 0xAA7386AA;
 
-	/**
-	 * request code to open an user list to check for changes
-	 */
-	private static final int REQUEST_OPEN_LIST = 0x9541;
 
-	private ListLoader listTask;
+	private ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this);
+
+	private UserlistLoader userlistLoader;
 	private UserlistAdapter adapter;
 
-	private String ownerName = "";
 	private long id = 0;
 	private int type = 0;
 
@@ -78,56 +73,77 @@ public class UserListFragment extends ListFragment implements ListClickListener 
 	@Override
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
+		userlistLoader = new UserlistLoader(requireContext());
+		adapter = new UserlistAdapter(this);
+		setAdapter(adapter, false);
+
 		Bundle param = getArguments();
 		if (param != null) {
-			id = param.getLong(KEY_FRAG_LIST_OWNER_ID, -1);
-			ownerName = param.getString(KEY_FRAG_LIST_OWNER_NAME, "");
-			type = param.getInt(KEY_FRAG_LIST_LIST_TYPE);
+			id = param.getLong(KEY_ID, -1L);
+			type = param.getInt(KEY_MODE);
 		}
-		adapter = new UserlistAdapter(requireContext(), this);
-		setAdapter(adapter);
+		if (savedInstanceState != null) {
+			Object data = savedInstanceState.getSerializable(KEY_SAVE);
+			if (data instanceof UserLists) {
+				adapter.setItems((UserLists) data);
+			}
+		}
+	}
+
+
+	@Override
+	public void onSaveInstanceState(@NonNull Bundle outState) {
+		outState.putSerializable(KEY_SAVE, adapter.getItems());
+		super.onSaveInstanceState(outState);
 	}
 
 
 	@Override
 	public void onStart() {
 		super.onStart();
-		if (listTask == null) {
+		if (adapter.isEmpty()) {
 			setRefresh(true);
-			load(NO_CURSOR);
+			load(UserlistLoader.Param.NO_CURSOR, UserlistAdapter.CLEAR_LIST);
 		}
 	}
 
 
 	@Override
-	protected void onReset() {
-		load(NO_CURSOR);
-		setRefresh(true);
-	}
-
-
-	@Override
 	public void onDestroy() {
-		if (listTask != null && listTask.getStatus() == RUNNING)
-			listTask.cancel(true);
+		userlistLoader.cancel();
 		super.onDestroy();
 	}
 
 
 	@Override
-	public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if (data != null && requestCode == REQUEST_OPEN_LIST) {
+	protected void onReload() {
+		load(UserlistLoader.Param.NO_CURSOR, UserlistAdapter.CLEAR_LIST);
+	}
+
+
+	@Override
+	protected void onReset() {
+		adapter.clear();
+		userlistLoader = new UserlistLoader(requireContext());
+		load(UserlistLoader.Param.NO_CURSOR, UserlistAdapter.CLEAR_LIST);
+		setRefresh(true);
+	}
+
+
+	@Override
+	public void onActivityResult(ActivityResult result) {
+		Intent intent = result.getData();
+		if (intent != null) {
 			// check if userlist was removed
-			if (resultCode == UserlistActivity.RETURN_LIST_REMOVED) {
-				long removedListId = data.getLongExtra(UserlistActivity.RESULT_REMOVED_LIST_ID, 0);
+			if (result.getResultCode() == UserlistActivity.RETURN_LIST_REMOVED) {
+				long removedListId = intent.getLongExtra(UserlistActivity.KEY_ID, 0L);
 				adapter.removeItem(removedListId);
 			}
 			// check if userlist was updated
-			else if (resultCode == UserlistActivity.RETURN_LIST_UPDATED) {
-				Object result = data.getSerializableExtra(UserlistActivity.RESULT_UPDATE_LIST);
-				if (result instanceof UserList) {
-					UserList update = (UserList) result;
+			else if (result.getResultCode() == UserlistActivity.RETURN_LIST_UPDATED) {
+				Object object = intent.getSerializableExtra(UserlistActivity.KEY_DATA);
+				if (object instanceof UserList) {
+					UserList update = (UserList) object;
 					adapter.updateItem(update);
 				}
 			}
@@ -136,67 +152,53 @@ public class UserListFragment extends ListFragment implements ListClickListener 
 
 
 	@Override
-	protected void onReload() {
-		load(NO_CURSOR);
-	}
-
-
-	@Override
 	public void onListClick(UserList listItem) {
-		Intent listIntent = new Intent(requireContext(), UserlistActivity.class);
-		listIntent.putExtra(KEY_LIST_DATA, listItem);
-		startActivityForResult(listIntent, REQUEST_OPEN_LIST);
+		if (!isRefreshing()) {
+			Intent listIntent = new Intent(requireContext(), UserlistActivity.class);
+			listIntent.putExtra(UserlistActivity.KEY_DATA, listItem);
+			activityResultLauncher.launch(listIntent);
+		}
 	}
 
 
 	@Override
-	public void onProfileClick(User user) {
-		Intent profile = new Intent(requireContext(), ProfileActivity.class);
-		profile.putExtra(KEY_PROFILE_DATA, user);
-		startActivity(profile);
-	}
-
-
-	@Override
-	public boolean onFooterClick(long cursor) {
-		if (listTask != null && listTask.getStatus() != RUNNING) {
-			load(cursor);
+	public boolean onPlaceholderClick(long cursor, int index) {
+		if (!isRefreshing() && userlistLoader.isIdle()) {
+			load(cursor, index);
 			return true;
 		}
 		return false;
 	}
 
-	/**
-	 * set data to list
-	 *
-	 * @param data List of Twitter list data
-	 */
-	public void setData(UserLists data) {
-		adapter.setData(data);
-		setRefresh(false);
-	}
 
-	/**
-	 * called from {@link ListLoader} if an error occurs
-	 *
-	 * @param error Twitter exception
-	 */
-	public void onError(@Nullable ErrorHandler.TwitterError error) {
-		ErrorHandler.handleFailure(requireContext(), error);
-		adapter.disableLoading();
+	@Override
+	public void onResult(@NonNull UserlistLoader.Result result) {
 		setRefresh(false);
+		if (result.userlists != null) {
+			adapter.addItems(result.userlists, result.index);
+		} else {
+			adapter.disableLoading();
+			Context context = getContext();
+			if (context != null) {
+				ErrorUtils.showErrorMessage(context, result.exception);
+			}
+		}
 	}
 
 	/**
 	 * load content into the list
 	 */
-	private void load(long cursor) {
-		if (type == LIST_USER_OWNS) {
-			listTask = new ListLoader(this, ListLoader.LOAD_USERLISTS, id, ownerName);
-			listTask.execute(cursor);
-		} else if (type == LIST_USER_SUBSCR_TO) {
-			listTask = new ListLoader(this, ListLoader.LOAD_MEMBERSHIPS, id, ownerName);
-			listTask.execute(cursor);
+	private void load(long cursor, int index) {
+		switch (type) {
+			case MODE_OWNERSHIP:
+				UserlistLoader.Param param = new UserlistLoader.Param(UserlistLoader.Param.OWNERSHIP, index, id, cursor);
+				userlistLoader.execute(param, this);
+				break;
+
+			case MODE_MEMBERSHIP:
+				param = new UserlistLoader.Param(UserlistLoader.Param.MEMBERSHIP, index, id, cursor);
+				userlistLoader.execute(param, this);
+				break;
 		}
 	}
 }

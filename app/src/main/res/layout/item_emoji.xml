@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:padding="@dimen/item_emoji_layout_padding"
+	android:layout_marginStart="@dimen/item_emoji_layout_margin_left_right"
+	android:layout_marginEnd="@dimen/item_emoji_layout_margin_left_right">
+
+	<TextView
+		android:id="@+id/item_emoji_group"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:textSize="@dimen/item_emoji_text_size"
+		android:layout_margin="@dimen/item_emoji_text_margin"
+		android:lines="1"
+		android:visibility="gone"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent" />
+
+	<ImageView
+		android:id="@+id/item_emoji_1"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		android:stateListAnimator="@anim/emoji"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_emoji_2" />
+
+	<ImageView
+		android:id="@+id/item_emoji_2"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toEndOf="@id/item_emoji_1"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_emoji_3" />
+
+	<ImageView
+		android:id="@+id/item_emoji_3"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toEndOf="@id/item_emoji_2"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_emoji_4" />
+
+	<ImageView
+		android:id="@+id/item_emoji_4"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toEndOf="@id/item_emoji_3"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_emoji_5" />
+
+	<ImageView
+		android:id="@+id/item_emoji_5"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toEndOf="@id/item_emoji_4"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_emoji_6" />
+
+	<ImageView
+		android:id="@+id/item_emoji_6"
+		android:layout_width="0dp"
+		android:layout_height="0dp"
+		android:layout_margin="@dimen/item_emoji_item_margin"
+		tools:ignore="ContentDescription"
+		app:layout_constraintDimensionRatio="1.0"
+		app:layout_constraintWidth_percent="0.12"
+		app:layout_constraintStart_toEndOf="@id/item_emoji_5"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

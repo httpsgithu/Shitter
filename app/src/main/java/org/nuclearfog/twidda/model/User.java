@@ -3,11 +3,11 @@ package org.nuclearfog.twidda.model;
 import java.io.Serializable;
 
 /**
- * interface for all user implementations
+ * interface for user implementations
  *
  * @author nuclearfog
  */
-public interface User extends Serializable {
+public interface User extends Serializable, Comparable<User> {
 
 	/**
 	 * @return ID of the user
@@ -27,17 +27,32 @@ public interface User extends Serializable {
 	/**
 	 * @return date of account creation
 	 */
-	long getCreatedAt();
+	long getTimestamp();
 
 	/**
 	 * @return profile image url
 	 */
-	String getImageUrl();
+	String getOriginalProfileImageUrl();
 
 	/**
-	 * @return profile banner url
+	 * @return small profile image url
 	 */
-	String getBannerUrl();
+	String getProfileImageThumbnailUrl();
+
+	/**
+	 * @return profile banner url in the highest available resolution
+	 */
+	String getOriginalBannerImageUrl();
+
+	/**
+	 * @return small banner image url
+	 */
+	String getBannerImageThumbnailUrl();
+
+	/**
+	 * @return true if user has a default profile image
+	 */
+	boolean hasDefaultProfileImage();
 
 	/**
 	 * @return profile description (bio)
@@ -65,9 +80,29 @@ public interface User extends Serializable {
 	boolean isProtected();
 
 	/**
-	 * @return true if current user has requested a follow
+	 * @return true if user is indexable (user information and post are accessable in the public)
 	 */
-	boolean followRequested();
+	boolean isIndexable();
+
+	/**
+	 * @return true if following/follower information is public
+	 */
+	boolean isDiscoverable();
+
+	/**
+	 * @return true if user is a bot
+	 */
+	boolean isBot();
+
+	/**
+	 * @return true if user represents a group
+	 */
+	boolean isGroup();
+
+	/**
+	 * @return true if the user is the same as the current user
+	 */
+	boolean isCurrentUser();
 
 	/**
 	 * @return number of following
@@ -80,9 +115,9 @@ public interface User extends Serializable {
 	int getFollower();
 
 	/**
-	 * @return number of tweets
+	 * @return number of statuses
 	 */
-	int getTweetCount();
+	int getStatusCount();
 
 	/**
 	 * @return number of favorites/likes
@@ -90,12 +125,18 @@ public interface User extends Serializable {
 	int getFavoriteCount();
 
 	/**
-	 * @return true if user has a default profile image
+	 * @return custom emojis used in the profile
 	 */
-	boolean hasDefaultProfileImage();
+	Emoji[] getEmojis();
 
 	/**
-	 * @return true if the user is the same as the current user
+	 * @return fields set by user
 	 */
-	boolean isCurrentUser();
+	Field[] getFields();
+
+
+	@Override
+	default int compareTo(User o) {
+		return Long.compare(o.getId(), getId());
+	}
 }

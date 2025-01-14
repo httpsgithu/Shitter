@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:id="@+id/dialog_connection_root"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:padding="@dimen/dialog_connection_root_padding"
+	tools:ignore="UseSwitchCompatOrMaterialXml"
+	tools:context=".ui.dialogs.ConnectionDialog">
+
+	<TextView
+		android:id="@+id/dialog_connection_hostname_label"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:text="@string/dialog_connection_custom_host"
+		android:lines="1"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:textSize="@dimen/dialog_connection_textsize_label"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+	<EditText
+		android:id="@+id/dialog_connection_hostname"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:background="@android:color/transparent"
+		android:hint="@string/settings_mastodon_hint"
+		android:lines="1"
+		android:layout_weight="1"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:inputType="textUri"
+		android:importantForAutofill="no"
+		android:textSize="@dimen/dialog_connection_textsize_input"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toBottomOf="@id/dialog_connection_hostname_label"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+	<TextView
+		android:id="@+id/dialog_connection_app_name_label"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:text="@string/login_app_name_label"
+		android:lines="1"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:textSize="@dimen/dialog_connection_textsize_label"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toBottomOf="@id/dialog_connection_hostname"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+	<EditText
+		android:id="@+id/dialog_connection_app_name"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:background="@android:color/transparent"
+		android:hint="@string/app_name_api"
+		android:lines="1"
+		android:layout_weight="1"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:inputType="text"
+		android:importantForAutofill="no"
+		android:textSize="@dimen/dialog_connection_textsize_input"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toBottomOf="@id/dialog_connection_app_name_label"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+	<Button
+		android:id="@+id/dialog_connection_discard"
+		android:layout_width="wrap_content"
+		android:layout_height="@dimen/dialog_connection_button_height"
+		android:text="@string/connection_discard"
+		android:lines="1"
+		android:padding="@dimen/dialog_connection_button_padding"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:textSize="@dimen/dialog_connection_textsize_button"
+		app:layout_constraintTop_toBottomOf="@id/dialog_connection_app_name"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/dialog_connection_confirm"
+		style="@style/FeedbackButton" />
+
+	<Button
+		android:id="@+id/dialog_connection_confirm"
+		android:layout_width="wrap_content"
+		android:layout_height="@dimen/dialog_connection_button_height"
+		android:text="@string/dialog_apply"
+		android:lines="1"
+		android:padding="@dimen/dialog_connection_button_padding"
+		android:layout_margin="@dimen/dialog_connection_layout_margin"
+		android:textSize="@dimen/dialog_connection_textsize_button"
+		app:layout_constraintTop_toBottomOf="@id/dialog_connection_app_name"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toEndOf="parent"
+		style="@style/FeedbackButton" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

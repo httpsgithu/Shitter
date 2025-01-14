@@ -1,58 +1,43 @@
 package org.nuclearfog.twidda.backend.async;
 
-import android.os.AsyncTask;
+import android.content.Context;
 
-import org.nuclearfog.twidda.database.AccountDatabase;
-import org.nuclearfog.twidda.model.Account;
-import org.nuclearfog.twidda.ui.fragments.AccountFragment;
+import androidx.annotation.NonNull;
 
-import java.lang.ref.WeakReference;
-import java.util.List;
+import org.nuclearfog.twidda.database.AppDatabase;
+import org.nuclearfog.twidda.model.lists.Accounts;
 
 /**
- * backend loader to get login information of local accounts
+ * Async loader to get saved login informations
  *
  * @author nuclearfog
  */
-public class AccountLoader extends AsyncTask<Account, Void, List<Account>> {
+public class AccountLoader extends AsyncExecutor<Void, AccountLoader.Result> {
 
-	private AccountDatabase accountDatabase;
-	private WeakReference<AccountFragment> weakRef;
+	private AppDatabase db;
 
-
-	public AccountLoader(AccountFragment fragment) {
-		super();
-		weakRef = new WeakReference<>(fragment);
-		accountDatabase = new AccountDatabase(fragment.requireContext());
+	/**
+	 *
+	 */
+	public AccountLoader(Context context) {
+		db = new AppDatabase(context);
 	}
 
 
 	@Override
-	protected List<Account> doInBackground(Account... param) {
-		List<Account> result = null;
-		try {
-			// remove account if parameter is set
-			if (param.length > 0 && param[0] != null) {
-				accountDatabase.removeLogin(param[0].getId());
-			}
-			// get registered users
-			result = accountDatabase.getLogins();
-		} catch (Exception err) {
-			err.printStackTrace();
-		}
-		return result;
+	protected Result doInBackground(@NonNull Void v) {
+		return new Result(db.getLogins());
 	}
 
+	/**
+	 *
+	 */
+	public static class Result {
 
-	@Override
-	protected void onPostExecute(List<Account> accounts) {
-		AccountFragment fragment = weakRef.get();
-		if (fragment != null) {
-			if (accounts != null) {
-				fragment.onSuccess(accounts);
-			} else {
-				fragment.onError();
-			}
+		public final Accounts accounts;
+
+		Result(Accounts accounts) {
+			this.accounts = accounts;
 		}
 	}
 }

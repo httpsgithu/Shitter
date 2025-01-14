@@ -1,7 +1,8 @@
 package org.nuclearfog.twidda.ui.fragments;
 
-import static android.os.AsyncTask.Status.RUNNING;
-
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
@@ -10,16 +11,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.nuclearfog.twidda.R;
-import org.nuclearfog.twidda.adapter.AccountAdapter;
-import org.nuclearfog.twidda.adapter.AccountAdapter.OnAccountClickListener;
+import org.nuclearfog.twidda.backend.async.AccountAction;
 import org.nuclearfog.twidda.backend.async.AccountLoader;
-import org.nuclearfog.twidda.database.GlobalSettings;
+import org.nuclearfog.twidda.backend.async.AsyncExecutor.AsyncCallback;
+import org.nuclearfog.twidda.config.GlobalSettings;
 import org.nuclearfog.twidda.model.Account;
+import org.nuclearfog.twidda.model.lists.Accounts;
+import org.nuclearfog.twidda.notification.PushSubscription;
 import org.nuclearfog.twidda.ui.activities.AccountActivity;
+import org.nuclearfog.twidda.ui.adapter.recyclerview.AccountAdapter;
+import org.nuclearfog.twidda.ui.adapter.recyclerview.AccountAdapter.OnAccountClickListener;
 import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog;
 import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog.OnConfirmListener;
-
-import java.util.List;
 
 /**
  * fragment class to show registered accounts
@@ -28,104 +31,150 @@ import java.util.List;
  */
 public class AccountFragment extends ListFragment implements OnAccountClickListener, OnConfirmListener {
 
-	@Nullable
-	private AccountLoader loginTask;
+	/**
+	 * internal Bundle key used to save adapter items
+	 * value type is {@link Accounts}
+	 */
+	private static final String KEY_SAVE = "account-data";
+
+	private AccountLoader accountLoader;
+	private AccountAction accountAction;
+
 	private GlobalSettings settings;
 	private AccountAdapter adapter;
-	private ConfirmDialog dialog;
+	@Nullable
 	private Account selection;
+
+	private AsyncCallback<AccountLoader.Result> accountLoaderResult = this::onLoaderResult;
+	private AsyncCallback<AccountAction.Result> accountActionResult = this::onActionResult;
 
 
 	@Override
 	public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
-		dialog = new ConfirmDialog(requireContext());
-		settings = GlobalSettings.getInstance(requireContext());
-		adapter = new AccountAdapter(requireContext(), this);
+		settings = GlobalSettings.get(requireContext());
+		accountLoader = new AccountLoader(requireContext());
+		accountAction = new AccountAction(requireContext());
+		adapter = new AccountAdapter(this);
+		setAdapter(adapter, false);
 
-		setAdapter(adapter);
-		dialog.setConfirmListener(this);
+		if (savedInstanceState != null) {
+			Object data = savedInstanceState.getSerializable(KEY_SAVE);
+			if (data instanceof Accounts) {
+				adapter.setItems((Accounts) data);
+			}
+		}
+	}
+
+
+	@Override
+	public void onSaveInstanceState(@NonNull Bundle outState) {
+		outState.putSerializable(KEY_SAVE, adapter.getItems());
+		super.onSaveInstanceState(outState);
 	}
 
 
 	@Override
 	public void onStart() {
 		super.onStart();
-		if (loginTask == null) {
+		if (adapter.isEmpty()) {
+			load();
 			setRefresh(true);
-			loginTask = new AccountLoader(this);
-			loginTask.execute();
 		}
 	}
 
 
 	@Override
 	public void onDestroy() {
-		if (loginTask != null && loginTask.getStatus() == RUNNING)
-			loginTask.cancel(true);
+		accountLoader.cancel();
+		accountAction.cancel();
 		super.onDestroy();
 	}
 
 
 	@Override
 	protected void onReload() {
-		loginTask = new AccountLoader(this);
-		loginTask.execute();
+		load();
 	}
 
 
 	@Override
 	protected void onReset() {
-		adapter.clear();
-		loginTask = new AccountLoader(this);
-		loginTask.execute();
 		setRefresh(true);
+		adapter.clear();
+		accountLoader = new AccountLoader(requireContext());
+		accountAction = new AccountAction(requireContext());
+		load();
 	}
 
 
 	@Override
 	public void onAccountClick(Account account) {
-		// set new account
-		settings.setAccessToken(account.getAccessToken());
-		settings.setTokenSecret(account.getTokenSecret());
-		settings.setUserId(account.getId());
-		// finish activity and return to parent activity
-		requireActivity().setResult(AccountActivity.RETURN_ACCOUNT_CHANGED);
-		requireActivity().finish();
+		if (accountAction.isIdle()) {
+			AccountAction.Param param = new AccountAction.Param(AccountAction.Param.SELECT, account);
+			accountAction.execute(param, accountActionResult);
+		}
 	}
 
 
 	@Override
 	public void onAccountRemove(Account account) {
-		if (!dialog.isShowing()) {
-			selection = account;
-			dialog.show(ConfirmDialog.REMOVE_ACCOUNT);
+		if (accountLoader.isIdle() && accountAction.isIdle() && isAdded()) {
+			if (ConfirmDialog.show(this, ConfirmDialog.REMOVE_ACCOUNT, null)) {
+				selection = account;
+			}
 		}
 	}
 
 
 	@Override
-	public void onConfirm(int type, boolean rememberChoice) {
+	public void onConfirm(int type) {
 		if (type == ConfirmDialog.REMOVE_ACCOUNT) {
-			loginTask = new AccountLoader(this);
-			loginTask.execute(selection);
+			if (selection != null) {
+				AccountAction.Param param = new AccountAction.Param(AccountAction.Param.REMOVE, selection);
+				accountAction.execute(param, accountActionResult);
+			}
 		}
 	}
 
 	/**
-	 * called from {@link AccountLoader} to set login information
 	 *
-	 * @param result login information
 	 */
-	public void onSuccess(List<Account> result) {
-		adapter.setData(result);
+	private void load() {
+		accountLoader.execute(null, accountLoaderResult);
+	}
+
+	/**
+	 *
+	 */
+	private void onLoaderResult(AccountLoader.Result result) {
+		adapter.setItems(result.accounts);
 		setRefresh(false);
 	}
 
 	/**
-	 * called from {@link AccountLoader} when an error occurs
+	 *
 	 */
-	public void onError() {
-		Toast.makeText(requireContext(), R.string.error_login_information, Toast.LENGTH_SHORT).show();
+	private void onActionResult(AccountAction.Result result) {
+		if (result.action == AccountAction.Result.REMOVE) {
+			adapter.removeItem(result.account);
+		} else if (result.action == AccountAction.Result.SELECT) {
+			Context context = getContext();
+			if (context != null) {
+				if (settings.pushEnabled()) {
+					PushSubscription.subscripe(context);
+				}
+				String message = getString(R.string.info_account_selected, result.account.getScreenname());
+				Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+			}
+			// set result to the parent activity
+			Activity activity = getActivity();
+			if (activity != null) {
+				Intent intent = new Intent();
+				intent.putExtra(AccountActivity.RETURN_ACCOUNT, result.account);
+				activity.setResult(AccountActivity.RETURN_ACCOUNT_CHANGED, intent);
+				activity.finish();
+			}
+		}
 	}
 }

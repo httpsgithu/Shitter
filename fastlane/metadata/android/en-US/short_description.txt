@@ -1,1 +1,1 @@
-lightweight Twitter client
+Lightweight Mastodon client

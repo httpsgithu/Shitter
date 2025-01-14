@@ -1,49 +1,57 @@
 package org.nuclearfog.twidda.ui.activities;
 
-import static android.os.AsyncTask.Status.RUNNING;
-import static android.view.View.INVISIBLE;
-import static androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL;
-
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Parcelable;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
 import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.Toolbar;
 
+import org.nuclearfog.twidda.BuildConfig;
 import org.nuclearfog.twidda.R;
-import org.nuclearfog.twidda.adapter.ImageAdapter;
-import org.nuclearfog.twidda.adapter.ImageAdapter.OnImageClickListener;
-import org.nuclearfog.twidda.backend.async.ImageLoader;
+import org.nuclearfog.twidda.backend.async.AsyncExecutor.AsyncCallback;
+import org.nuclearfog.twidda.backend.async.ImageDownloader;
+import org.nuclearfog.twidda.backend.helper.MediaStatus;
 import org.nuclearfog.twidda.backend.utils.AppStyles;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler;
-import org.nuclearfog.twidda.database.GlobalSettings;
-import org.nuclearfog.zoomview.ZoomView;
+import org.nuclearfog.twidda.backend.utils.BlurHashDecoder;
+import org.nuclearfog.twidda.backend.utils.ErrorUtils;
+import org.nuclearfog.twidda.config.GlobalSettings;
+import org.nuclearfog.twidda.model.Media;
+import org.nuclearfog.twidda.ui.dialogs.DescriptionDialog;
+import org.nuclearfog.twidda.ui.dialogs.DescriptionDialog.DescriptionCallback;
+import org.nuclearfog.twidda.ui.dialogs.MetaDialog;
+import org.nuclearfog.twidda.ui.views.AnimatedImageView;
+import org.nuclearfog.twidda.ui.views.DescriptionView;
+import org.nuclearfog.twidda.ui.views.ZoomView;
 
 import java.io.File;
+import java.io.Serializable;
 
 /**
  * Activity to show online and local images
  *
  * @author nuclearfog
  */
-public class ImageViewer extends MediaActivity implements OnImageClickListener {
+public class ImageViewer extends MediaActivity implements AsyncCallback<ImageDownloader.Result>, DescriptionCallback {
 
 	/**
-	 * key to add URI of the image (online or local)
-	 * value type is {@link Uri}
+	 * activity result code indicates that {@link MediaStatus} data has been updated
 	 */
-	public static final String IMAGE_URIS = "image-uri";
+	public static final int RETURN_MEDIA_STATUS_UPDATE = 0x5895;
 
 	/**
-	 * key to define where the images are located (online or local)
-	 * value type is Boolean
+	 * key to add media data (online or local)
+	 * value type can be {@link Media} for online media, {@link MediaStatus} for local media or {@link Uri} for media links
 	 */
-	public static final String IMAGE_DOWNLOAD = "image-download";
+	public static final String KEY_IMAGE_DATA = "image-data";
 
 	/**
 	 * name of the cache folder where online images will be stored
@@ -51,72 +59,188 @@ public class ImageViewer extends MediaActivity implements OnImageClickListener {
 	 */
 	private static final String CACHE_FOLDER = "imagecache";
 
-	@Nullable
-	private ImageLoader imageAsync;
-	private ImageAdapter adapter;
-	private File cacheFolder;
-
 	private ZoomView zoomImage;
 	private ProgressBar loadingCircle;
+	private DescriptionView descriptionView;
+
+	@Nullable
+	private Uri cacheUri;
+	@Nullable
+	private MediaStatus mediaStatus;
+	@Nullable
+	private Media media;
+	@Nullable
+	private ImageDownloader imageAsync;
+	private GlobalSettings settings;
+	private File cacheFolder;
+	private Media.Meta meta;
+
+
+	@Override
+	protected void attachBaseContext(Context newBase) {
+		super.attachBaseContext(AppStyles.setFontScale(newBase));
+	}
 
 
 	@Override
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.page_image);
-		loadingCircle = findViewById(R.id.media_progress);
-		zoomImage = findViewById(R.id.image_full);
-		RecyclerView imageList = findViewById(R.id.image_list);
-
-		GlobalSettings settings = GlobalSettings.getInstance(this);
-		AppStyles.setProgressColor(loadingCircle, settings.getHighlightColor());
-
+		Toolbar toolbar = findViewById(R.id.page_image_toolbar);
+		AnimatedImageView gifImage = findViewById(R.id.page_image_gif);
+		descriptionView = findViewById(R.id.page_image_description);
+		loadingCircle = findViewById(R.id.page_image_progress);
+		zoomImage = findViewById(R.id.page_image_viewer);
+		settings = GlobalSettings.get(this);
+		imageAsync = new ImageDownloader(this);
 		cacheFolder = new File(getExternalCacheDir(), ImageViewer.CACHE_FOLDER);
-		cacheFolder.mkdirs();
-		adapter = new ImageAdapter(getApplicationContext(), this);
-		imageList.setLayoutManager(new LinearLayoutManager(this, HORIZONTAL, false));
-		imageList.setAdapter(adapter);
 
-		Parcelable[] links = getIntent().getParcelableArrayExtra(IMAGE_URIS);
-		boolean online = getIntent().getBooleanExtra(IMAGE_DOWNLOAD, true);
-		Uri[] uris = {null};
-		if (links != null) {
-			uris = new Uri[links.length];
-			for (int i = 0; i < uris.length; i++) {
-				uris[i] = (Uri) links[i];
+		AppStyles.setProgressColor(loadingCircle, settings.getHighlightColor());
+		toolbar.setBackgroundColor(settings.getBackgroundColor());
+		toolbar.setTitle("");
+		setSupportActionBar(toolbar);
+		cacheFolder.mkdirs();
+
+		// get parameters
+		String imageUrl = null;
+		String blurHash = null;
+		String description = null;
+		boolean animated = false;
+		boolean local = false;
+		float ratio = 1.0f;
+		Serializable serializedData;
+		if (savedInstanceState != null) {
+			serializedData = savedInstanceState.getSerializable(KEY_IMAGE_DATA);
+		} else {
+			serializedData = getIntent().getSerializableExtra(KEY_IMAGE_DATA);
+		}
+		if (serializedData instanceof MediaStatus) {
+			mediaStatus = (MediaStatus) serializedData;
+			imageUrl = mediaStatus.getPath();
+			animated = mediaStatus.getMediaType() == MediaStatus.GIF;
+			local = imageUrl != null && !imageUrl.startsWith("http");
+			description = mediaStatus.getDescription();
+		} else if (serializedData instanceof Media) {
+			media = (Media) serializedData;
+			meta = media.getMeta();
+			blurHash = media.getBlurHash();
+			imageUrl = media.getUrl();
+			description = media.getDescription();
+			animated = media.getMediaType() == Media.GIF;
+			if (meta != null) {
+				ratio = meta.getWidth() / (float) meta.getHeight();
+			}
+		} else if (serializedData instanceof String) {
+			imageUrl = (String) serializedData;
+		}
+		// setup image view
+		if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+			// select view to show image
+			if (animated) {
+				gifImage.setVisibility(View.VISIBLE);
+				zoomImage.setVisibility(View.INVISIBLE);
+			} else {
+				gifImage.setVisibility(View.INVISIBLE);
+				zoomImage.setVisibility(View.VISIBLE);
+			}
+			//  load image
+			if (local) {
+				if (animated) {
+					gifImage.setImageURI(Uri.parse(imageUrl));
+				} else {
+					zoomImage.setImageURI(Uri.parse(imageUrl));
+				}
+			} else {
+				loadingCircle.setVisibility(View.VISIBLE);
+				ImageDownloader.Param request = new ImageDownloader.Param(Uri.parse(imageUrl), cacheFolder);
+				imageAsync.execute(request, this);
 			}
 		}
-		if (online) {
-			imageAsync = new ImageLoader(this, cacheFolder);
-			imageAsync.execute(uris);
-		} else {
-			adapter.addAll(uris);
-			adapter.disableSaveButton();
-			zoomImage.setImageURI(uris[0]);
-			loadingCircle.setVisibility(INVISIBLE);
+		// set image description
+		if (description != null && !description.trim().isEmpty()) {
+			descriptionView.setDescription(description);
+			descriptionView.setVisibility(View.VISIBLE);
+		}
+		// set image blur placeholder
+		if (blurHash != null && !blurHash.trim().isEmpty()) {
+			Bitmap blur = BlurHashDecoder.decode(blurHash, ratio);
+			zoomImage.setImageBitmap(blur);
+			zoomImage.setMovable(false);
 		}
 	}
 
 
 	@Override
+	protected void onSaveInstanceState(@NonNull Bundle outState) {
+		if (mediaStatus != null)
+			outState.putSerializable(KEY_IMAGE_DATA, mediaStatus);
+		else if (media != null)
+			outState.putSerializable(KEY_IMAGE_DATA, media);
+		super.onSaveInstanceState(outState);
+	}
+
+
+	@Override
+	public void onBackPressed() {
+		if (mediaStatus != null) {
+			Intent intent = new Intent();
+			intent.putExtra(KEY_IMAGE_DATA, mediaStatus);
+			setResult(RETURN_MEDIA_STATUS_UPDATE, intent);
+		}
+		super.onBackPressed();
+	}
+
+
+	@Override
 	protected void onDestroy() {
-		if (imageAsync != null && imageAsync.getStatus() == RUNNING)
-			imageAsync.cancel(true);
+		if (imageAsync != null)
+			imageAsync.cancel();
 		clearCache();
 		super.onDestroy();
 	}
 
 
 	@Override
-	public void onImageClick(Uri uri) {
-		zoomImage.reset();
-		zoomImage.setImageURI(uri);
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.image, menu);
+		MenuItem itemDescription = menu.findItem(R.id.menu_image_add_description);
+		itemDescription.setVisible(mediaStatus != null);
+		AppStyles.setMenuIconColor(menu, settings.getIconColor());
+		return true;
 	}
 
 
 	@Override
-	public void onImageSave(Uri uri) {
-		storeImage(uri);
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		MenuItem itemSave = menu.findItem(R.id.menu_image_save);
+		MenuItem itemMeta = menu.findItem(R.id.menu_image_show_meta);
+		itemSave.setVisible(cacheUri != null);
+		itemMeta.setVisible(meta != null);
+		return true;
+	}
+
+
+	@Override
+	public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+		if (item.getItemId() == R.id.menu_image_save) {
+			if (cacheUri != null) {
+				storeImage(cacheUri);
+			}
+			return true;
+		} else if (item.getItemId() == R.id.menu_image_add_description) {
+			if (mediaStatus != null) {
+				DescriptionDialog.show(this, mediaStatus.getDescription());
+			} else {
+				DescriptionDialog.show(this, "");
+			}
+			return true;
+		} else if (item.getItemId() == R.id.menu_image_show_meta) {
+			if (meta != null) {
+				MetaDialog.show(this, meta);
+			}
+			return true;
+		}
+		return false;
 	}
 
 
@@ -129,35 +253,38 @@ public class ImageViewer extends MediaActivity implements OnImageClickListener {
 	protected void onMediaFetched(int resultType, @NonNull Uri uri) {
 	}
 
-	/**
-	 * set downloaded image into preview list
-	 *
-	 * @param imageUri Image Uri
-	 */
-	public void setImage(Uri imageUri) {
-		if (adapter.isEmpty()) {
+
+	@Override
+	public void onResult(@NonNull ImageDownloader.Result result) {
+		if (result.uri != null) {
+			loadingCircle.setVisibility(View.INVISIBLE);
+			cacheUri = result.uri;
 			zoomImage.reset();
-			zoomImage.setImageURI(imageUri);
-			loadingCircle.setVisibility(INVISIBLE);
+			zoomImage.setImageURI(cacheUri);
+			zoomImage.setMovable(true);
+			invalidateMenu();
+		} else {
+			ErrorUtils.showErrorMessage(getApplicationContext(), result.exception);
+			finish();
 		}
-		adapter.addLast(imageUri);
 	}
 
-	/**
-	 * Called from {@link ImageLoader} when all images are downloaded successfully
-	 */
-	public void onSuccess() {
-		adapter.disableLoading();
-	}
 
-	/**
-	 * Called from {@link ImageLoader} when an error occurs
-	 *
-	 * @param err Exception caught by {@link ImageLoader}
-	 */
-	public void onError(ErrorHandler.TwitterError err) {
-		ErrorHandler.handleFailure(getApplicationContext(), err);
-		finish();
+	@Override
+	public void onDescriptionSet(String description) {
+		if (description != null && !description.trim().isEmpty()) {
+			descriptionView.setDescription(description);
+			descriptionView.setVisibility(View.VISIBLE);
+			if (mediaStatus != null) {
+				mediaStatus.setDescription(description);
+			}
+		} else {
+			descriptionView.setDescription("");
+			descriptionView.setVisibility(View.INVISIBLE);
+			if (mediaStatus != null) {
+				mediaStatus.setDescription("");
+			}
+		}
 	}
 
 	/**
@@ -166,13 +293,15 @@ public class ImageViewer extends MediaActivity implements OnImageClickListener {
 	private void clearCache() {
 		try {
 			File[] files = cacheFolder.listFiles();
-			if (files != null && files.length > 0) {
+			if (files != null) {
 				for (File file : files) {
 					file.delete();
 				}
 			}
-		} catch (SecurityException e) {
-			e.printStackTrace();
+		} catch (SecurityException exception) {
+			if (BuildConfig.DEBUG) {
+				exception.printStackTrace();
+			}
 		}
 	}
 }
