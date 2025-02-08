@@ -1,23 +1,19 @@
 package org.nuclearfog.twidda.ui.activities;
 
-import static android.os.AsyncTask.Status.RUNNING;
-import static android.view.View.GONE;
-import static android.view.View.OnClickListener;
-import static android.view.View.VISIBLE;
+import static android.Manifest.permission.POST_NOTIFICATIONS;
 
-import android.app.Dialog;
+import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnDismissListener;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Patterns;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
@@ -28,34 +24,30 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
 
-import com.flask.colorpicker.ColorPickerView;
-import com.flask.colorpicker.OnColorChangedListener;
-import com.flask.colorpicker.builder.ColorPickerDialogBuilder;
 import com.kyleduo.switchbutton.SwitchButton;
 
 import org.nuclearfog.twidda.R;
-import org.nuclearfog.twidda.adapter.FontAdapter;
-import org.nuclearfog.twidda.adapter.LocationAdapter;
-import org.nuclearfog.twidda.adapter.ScaleAdapter;
-import org.nuclearfog.twidda.backend.async.LocationLoader;
+import org.nuclearfog.twidda.backend.async.AsyncExecutor.AsyncCallback;
+import org.nuclearfog.twidda.backend.async.DatabaseAction;
 import org.nuclearfog.twidda.backend.utils.AppStyles;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler;
-import org.nuclearfog.twidda.database.AccountDatabase;
-import org.nuclearfog.twidda.database.DatabaseAdapter;
-import org.nuclearfog.twidda.database.GlobalSettings;
-import org.nuclearfog.twidda.model.Location;
+import org.nuclearfog.twidda.config.Configuration;
+import org.nuclearfog.twidda.config.GlobalSettings;
+import org.nuclearfog.twidda.notification.PushSubscription;
+import org.nuclearfog.twidda.ui.adapter.listview.DropdownAdapter;
+import org.nuclearfog.twidda.ui.dialogs.ColorPickerDialog;
+import org.nuclearfog.twidda.ui.dialogs.ColorPickerDialog.OnColorSelectedListener;
 import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog;
 import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog.OnConfirmListener;
 import org.nuclearfog.twidda.ui.dialogs.InfoDialog;
 import org.nuclearfog.twidda.ui.dialogs.LicenseDialog;
+import org.nuclearfog.twidda.ui.dialogs.WebPushDialog;
 
-import java.util.List;
 import java.util.regex.Matcher;
 
 /**
@@ -63,8 +55,8 @@ import java.util.regex.Matcher;
  *
  * @author nuclearfog
  */
-public class SettingsActivity extends AppCompatActivity implements OnClickListener, OnDismissListener, OnSeekBarChangeListener,
-		OnCheckedChangeListener, OnItemSelectedListener, OnConfirmListener, OnColorChangedListener {
+public class SettingsActivity extends AppCompatActivity implements OnClickListener, OnSeekBarChangeListener,
+		OnCheckedChangeListener, OnItemSelectedListener, OnConfirmListener, OnColorSelectedListener {
 
 	/**
 	 * return code to recognize {@link MainActivity} that the current account was removed from login
@@ -72,14 +64,18 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	public static final int RETURN_APP_LOGOUT = 0x530;
 
 	/**
-	 * return code to recognize {@link MainActivity} that the database was removed
+	 * return code to recognize {@link MainActivity} that settings may changed
 	 */
-	public static final int RETURN_DATA_CLEARED = 0x955;
+	public static final int RETURN_SETTINGS_CHANGED = 0xA3E8;
+
+	public static final int RETURN_FONT_SCALE_CHANGED = 0x2636;
+
+	private static final int REQUEST_PERMISSION_NOTIFICATION = 0x5889;
 
 	/**
 	 * total count of all colors defined
 	 */
-	private static final int COLOR_COUNT = 10;
+	private static final int COLOR_COUNT = 9;
 	// app colors
 	private static final int COLOR_BACKGROUND = 0;
 	private static final int COLOR_TEXT = 1;
@@ -87,31 +83,23 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	private static final int COLOR_HIGHLIGHT = 3;
 	private static final int COLOR_CARD = 4;
 	private static final int COLOR_ICON = 5;
-	private static final int COLOR_RETWEET = 6;
+	private static final int COLOR_REPOST = 6;
 	private static final int COLOR_FAVORITE = 7;
-	private static final int COLOR_FOLLOW_REQUEST = 8;
-	private static final int COLOR_FOLLOWING = 9;
+	private static final int COLOR_FOLLOWING = 8;
 
 	private GlobalSettings settings;
+	private DatabaseAction databaseAction;
 
-	private LocationLoader locationAsync;
-	private LocationAdapter locationAdapter;
-	private BaseAdapter fontAdapter, scaleAdapter;
+	private DropdownAdapter fontAdapter, scaleAdapter;
 
-	private Dialog color_dialog_selector, appInfo, license;
-	private ConfirmDialog confirmDialog;
-
-	private View hqImageText, enableAuthTxt, api_info;
-	private EditText proxyAddr, proxyPort, proxyUser, proxyPass, api_key1, api_key2;
-	private SwitchButton enableProxy, enableAuth, hqImage, enableAPI;
-	private Spinner locationSpinner;
+	private View enable_auth_label;
+	private EditText proxy_address, proxy_port, proxy_user, proxy_pass;
+	private SwitchButton enable_proxy, enable_auth, enablePush;
 	private TextView list_size;
 	private ViewGroup root;
 	private Button[] colorButtons = new Button[COLOR_COUNT];
 
-	@IntRange(from = 0, to = COLOR_COUNT - 1)
-	private int mode = 0;
-	private int color = 0;
+	private AsyncCallback<DatabaseAction.Result> databaseResult = this::onDatabaseResult;
 
 
 	@Override
@@ -124,58 +112,60 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	protected void onCreate(@Nullable Bundle b) {
 		super.onCreate(b);
 		setContentView(R.layout.page_settings);
-		Button delButton = findViewById(R.id.delete_db);
-		Button logout = findViewById(R.id.logout);
-		Toolbar toolbar = findViewById(R.id.toolbar_setting);
-		View trend_card = findViewById(R.id.settings_trend_card);
-		View user_card = findViewById(R.id.settings_data_card);
-		SwitchButton toggleImg = findViewById(R.id.toggleImg);
-		SwitchButton toggleAns = findViewById(R.id.toggleAns);
-		SwitchButton toolbarOverlap = findViewById(R.id.settings_toolbar_ov);
-		SwitchButton enablePreview = findViewById(R.id.settings_enable_prev);
-		SwitchButton enableLike = findViewById(R.id.enable_like);
-		SwitchButton enableTwitterAlt = findViewById(R.id.settings_enable_twitter_alt);
-		SwitchButton enableTweetIcons = findViewById(R.id.enable_tweet_indicators);
-		SeekBar listSizeSelector = findViewById(R.id.settings_list_seek);
-		Spinner fontSelector = findViewById(R.id.spinner_font);
-		Spinner scaleSelector = findViewById(R.id.spinner_scale);
-		enableProxy = findViewById(R.id.settings_enable_proxy);
-		enableAuth = findViewById(R.id.settings_enable_auth);
-		api_info = findViewById(R.id.settings_api_info);
-		hqImage = findViewById(R.id.settings_image_hq);
-		enableAPI = findViewById(R.id.settings_set_custom_keys);
-		locationSpinner = findViewById(R.id.spinner_woeid);
-		hqImageText = findViewById(R.id.settings_image_hq_descr);
-		enableAuthTxt = findViewById(R.id.settings_enable_auth_descr);
-		colorButtons[COLOR_BACKGROUND] = findViewById(R.id.color_background);
-		colorButtons[COLOR_TEXT] = findViewById(R.id.color_text);
-		colorButtons[COLOR_WINDOW] = findViewById(R.id.color_window);
-		colorButtons[COLOR_HIGHLIGHT] = findViewById(R.id.highlight_color);
-		colorButtons[COLOR_CARD] = findViewById(R.id.color_card);
-		colorButtons[COLOR_ICON] = findViewById(R.id.color_icon);
-		colorButtons[COLOR_RETWEET] = findViewById(R.id.color_rt);
-		colorButtons[COLOR_FAVORITE] = findViewById(R.id.color_fav);
-		colorButtons[COLOR_FOLLOW_REQUEST] = findViewById(R.id.color_f_req);
-		colorButtons[COLOR_FOLLOWING] = findViewById(R.id.color_follow);
-		proxyAddr = findViewById(R.id.edit_proxy_address);
-		proxyPort = findViewById(R.id.edit_proxy_port);
-		proxyUser = findViewById(R.id.edit_proxyuser);
-		proxyPass = findViewById(R.id.edit_proxypass);
-		api_key1 = findViewById(R.id.settings_custom_key1);
-		api_key2 = findViewById(R.id.settings_custom_key2);
-		list_size = findViewById(R.id.settings_list_size);
-		root = findViewById(R.id.settings_layout);
+		Button delButton = findViewById(R.id.page_settings_button_delete_data);
+		Button logout = findViewById(R.id.page_settings_button_logout);
+		Toolbar toolbar = findViewById(R.id.page_settings_toolbar);
+		View user_card = findViewById(R.id.page_settings_card_data);
+		View push_label = findViewById(R.id.page_settings_enable_push_label);
+		SwitchButton toggleImg = findViewById(R.id.page_settings_enable_images);
+		SwitchButton toolbarOverlap = findViewById(R.id.page_settings_toolbar_collapse);
+		SwitchButton enableLike = findViewById(R.id.page_settings_enable_like);
+		SwitchButton hideSensitive = findViewById(R.id.page_settings_sensitive_enable);
+		SwitchButton enableStatusIcons = findViewById(R.id.page_settings_enable_status_indicators);
+		SwitchButton enableFloatingButton = findViewById(R.id.page_settings_enable_floating_button);
+		SwitchButton chronologicalTimeline = findViewById(R.id.page_settings_chronological_timeline_sw);
+		SeekBar listSizeSelector = findViewById(R.id.page_settings_list_seek);
+		Spinner fontSelector = findViewById(R.id.page_settings_font_selector);
+		Spinner scaleSelector = findViewById(R.id.page_settings_textscale_selector);
+		Spinner publicTimelineSelector = findViewById(R.id.page_settings_public_timeline_selector);
+		enablePush = findViewById(R.id.page_settings_enable_push);
+		enable_proxy = findViewById(R.id.page_settings_enable_proxy);
+		enable_auth = findViewById(R.id.page_settings_enable_proxyauth);
+		enable_auth_label = findViewById(R.id.page_settings_enable_proxyauth_label);
+		colorButtons[COLOR_BACKGROUND] = findViewById(R.id.page_settings_color_background);
+		colorButtons[COLOR_TEXT] = findViewById(R.id.page_settings_color_text);
+		colorButtons[COLOR_WINDOW] = findViewById(R.id.page_settings_color_window);
+		colorButtons[COLOR_HIGHLIGHT] = findViewById(R.id.page_settings_highlight_color);
+		colorButtons[COLOR_CARD] = findViewById(R.id.page_settings_color_card);
+		colorButtons[COLOR_ICON] = findViewById(R.id.page_settings_color_icon);
+		colorButtons[COLOR_REPOST] = findViewById(R.id.page_settings_color_repost);
+		colorButtons[COLOR_FAVORITE] = findViewById(R.id.page_settings_color_favorite);
+		colorButtons[COLOR_FOLLOWING] = findViewById(R.id.page_settings_color_follow);
+		proxy_address = findViewById(R.id.page_settings_input_proxyaddress);
+		proxy_port = findViewById(R.id.page_settings_input_proxyport);
+		proxy_user = findViewById(R.id.page_settings_input_proxyuser);
+		proxy_pass = findViewById(R.id.page_settings_input_proxypass);
+		list_size = findViewById(R.id.page_settings_list_seek_value);
+		root = findViewById(R.id.page_settings_root);
 
-		toolbar.setTitle(R.string.title_settings);
+		settings = GlobalSettings.get(this);
+		Configuration configuration = settings.getLogin().getConfiguration();
+		databaseAction = new DatabaseAction(this);
+		fontAdapter = new DropdownAdapter(getApplicationContext());
+		scaleAdapter = new DropdownAdapter(getApplicationContext());
+
+		toolbar.setTitle(R.string.menu_open_settings);
 		setSupportActionBar(toolbar);
+		AppStyles.setTheme(root);
+		AppStyles.setOverflowIcon(toolbar, settings.getIconColor());
 
-		settings = GlobalSettings.getInstance(this);
-		locationAdapter = new LocationAdapter(settings);
-		locationAdapter.addTop(settings.getTrendLocation());
-		locationSpinner.setAdapter(locationAdapter);
-		locationSpinner.setSelected(false);
-		fontAdapter = new FontAdapter(settings);
-		scaleAdapter = new ScaleAdapter(settings);
+		DropdownAdapter publicTimelineAdapter = new DropdownAdapter(this);
+		fontAdapter.setFonts(GlobalSettings.FONT_TYPES);
+		fontAdapter.setItems(GlobalSettings.FONT_NAMES);
+		scaleAdapter.setItems(R.array.scales);
+		publicTimelineAdapter.setItems(R.array.public_timelines);
+
+		publicTimelineSelector.setAdapter(publicTimelineAdapter);
 		fontSelector.setAdapter(fontAdapter);
 		scaleSelector.setAdapter(scaleAdapter);
 		fontSelector.setSelection(settings.getFontIndex(), false);
@@ -183,60 +173,56 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 		fontSelector.setSelected(false);
 		scaleSelector.setSelected(false);
 
-		AppStyles.setTheme(root, settings.getBackgroundColor());
-		AppStyles.setOverflowIcon(toolbar, settings.getIconColor());
-
-		confirmDialog = new ConfirmDialog(this);
-		appInfo = new InfoDialog(this);
-		license = new LicenseDialog(this);
-
+		if (!configuration.isPublicTimelinesupported()) {
+			publicTimelineSelector.setVisibility(View.GONE);
+		}
+		if (!configuration.isWebpushSupported()) {
+			push_label.setVisibility(View.GONE);
+			enablePush.setVisibility(View.GONE);
+		}
 		if (!settings.isLoggedIn()) {
-			trend_card.setVisibility(GONE);
-			user_card.setVisibility(GONE);
+			user_card.setVisibility(View.GONE);
+			push_label.setVisibility(View.GONE);
+			enablePush.setVisibility(View.GONE);
 		}
 		if (!settings.isProxyEnabled()) {
-			proxyAddr.setVisibility(GONE);
-			proxyPort.setVisibility(GONE);
-			proxyUser.setVisibility(GONE);
-			proxyPass.setVisibility(GONE);
-			enableAuth.setVisibility(GONE);
-			enableAuthTxt.setVisibility(GONE);
+			proxy_address.setVisibility(View.GONE);
+			proxy_port.setVisibility(View.GONE);
+			proxy_user.setVisibility(View.GONE);
+			proxy_pass.setVisibility(View.GONE);
+			enable_auth.setVisibility(View.GONE);
+			enable_auth_label.setVisibility(View.GONE);
 		} else if (!settings.isProxyAuthSet()) {
-			proxyUser.setVisibility(GONE);
-			proxyPass.setVisibility(GONE);
+			proxy_user.setVisibility(View.GONE);
+			proxy_pass.setVisibility(View.GONE);
 		}
-		if (!settings.imagesEnabled()) {
-			hqImageText.setVisibility(GONE);
-			hqImage.setVisibility(GONE);
-		}
-		if (!settings.isCustomApiSet()) {
-			api_key1.setVisibility(GONE);
-			api_key2.setVisibility(GONE);
-			api_info.setVisibility(GONE);
-		}
+
 		if (settings.likeEnabled()) {
 			colorButtons[COLOR_FAVORITE].setText(R.string.settings_color_like);
 		} else {
 			colorButtons[COLOR_FAVORITE].setText(R.string.settings_color_fav);
 		}
+		if (settings.getPublicTimeline().equals(GlobalSettings.TIMELINE_COMBINED)) {
+			publicTimelineSelector.setSelection(0);
+		} else if (settings.getPublicTimeline().equals(GlobalSettings.TIMELINE_LOCAL)) {
+			publicTimelineSelector.setSelection(1);
+		} else if (settings.getPublicTimeline().equals(GlobalSettings.TIMELINE_REMOTE)) {
+			publicTimelineSelector.setSelection(2);
+		}
 		toggleImg.setCheckedImmediately(settings.imagesEnabled());
-		toggleAns.setCheckedImmediately(settings.replyLoadingEnabled());
-		enablePreview.setCheckedImmediately(settings.linkPreviewEnabled());
 		toolbarOverlap.setCheckedImmediately(settings.toolbarOverlapEnabled());
 		enableLike.setCheckedImmediately(settings.likeEnabled());
-		enableTwitterAlt.setCheckedImmediately(settings.twitterAltSet());
-		enableTweetIcons.setCheckedImmediately(settings.tweetIndicatorsEnabled());
-		enableAPI.setCheckedImmediately(settings.isCustomApiSet());
-		enableProxy.setCheckedImmediately(settings.isProxyEnabled());
-		enableAuth.setCheckedImmediately(settings.isProxyAuthSet());
-		hqImage.setCheckedImmediately(settings.imagesEnabled());
-		hqImage.setCheckedImmediately(settings.getImageQuality());
-		proxyAddr.setText(settings.getProxyHost());
-		proxyPort.setText(settings.getProxyPort());
-		proxyUser.setText(settings.getProxyUser());
-		proxyPass.setText(settings.getProxyPass());
-		api_key1.setText(settings.getConsumerKey());
-		api_key2.setText(settings.getConsumerSecret());
+		hideSensitive.setCheckedImmediately(settings.hideSensitiveEnabled());
+		enableStatusIcons.setCheckedImmediately(settings.statusIndicatorsEnabled());
+		enableFloatingButton.setCheckedImmediately(settings.floatingButtonEnabled());
+		chronologicalTimeline.setChecked(settings.chronologicalTimelineEnabled());
+		enablePush.setCheckedImmediately(settings.pushEnabled());
+		enable_proxy.setCheckedImmediately(settings.isProxyEnabled());
+		enable_auth.setCheckedImmediately(settings.isProxyAuthSet());
+		proxy_address.setText(settings.getProxyHost());
+		proxy_port.setText(settings.getProxyPort());
+		proxy_user.setText(settings.getProxyUser());
+		proxy_pass.setText(settings.getProxyPass());
 		list_size.setText(Integer.toString(settings.getListSize()));
 		listSizeSelector.setProgress(settings.getListSize() / 10 - 1);
 		setButtonColors();
@@ -246,30 +232,27 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 		logout.setOnClickListener(this);
 		delButton.setOnClickListener(this);
 		toggleImg.setOnCheckedChangeListener(this);
-		toggleAns.setOnCheckedChangeListener(this);
-		enableAPI.setOnCheckedChangeListener(this);
+		enablePush.setOnCheckedChangeListener(this);
 		enableLike.setOnCheckedChangeListener(this);
-		enableTwitterAlt.setOnCheckedChangeListener(this);
-		enableTweetIcons.setOnCheckedChangeListener(this);
-		enablePreview.setOnCheckedChangeListener(this);
-		enableProxy.setOnCheckedChangeListener(this);
-		enableAuth.setOnCheckedChangeListener(this);
-		hqImage.setOnCheckedChangeListener(this);
+		chronologicalTimeline.setOnCheckedChangeListener(this);
+		enableStatusIcons.setOnCheckedChangeListener(this);
+		hideSensitive.setOnCheckedChangeListener(this);
+		enableFloatingButton.setOnCheckedChangeListener(this);
+		enable_proxy.setOnCheckedChangeListener(this);
+		enable_auth.setOnCheckedChangeListener(this);
+		push_label.setOnClickListener(this);
 		toolbarOverlap.setOnCheckedChangeListener(this);
 		fontSelector.setOnItemSelectedListener(this);
 		scaleSelector.setOnItemSelectedListener(this);
+		publicTimelineSelector.setOnItemSelectedListener(this);
 		listSizeSelector.setOnSeekBarChangeListener(this);
-		confirmDialog.setConfirmListener(this);
 	}
 
 
 	@Override
 	protected void onStart() {
 		super.onStart();
-		if (settings.isLoggedIn() && locationAsync == null) {
-			locationAsync = new LocationLoader(this);
-			locationAsync.execute();
-		}
+		setResult(RETURN_SETTINGS_CHANGED);
 	}
 
 
@@ -278,15 +261,14 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 		if (saveConnectionSettings()) {
 			super.onBackPressed();
 		} else {
-			confirmDialog.show(ConfirmDialog.WRONG_PROXY);
+			ConfirmDialog.show(this, ConfirmDialog.WRONG_PROXY, null);
 		}
 	}
 
 
 	@Override
 	protected void onDestroy() {
-		if (locationAsync != null && locationAsync.getStatus() == RUNNING)
-			locationAsync.cancel(true);
+		databaseAction.cancel();
 		super.onDestroy();
 	}
 
@@ -295,40 +277,50 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	public boolean onCreateOptionsMenu(@NonNull Menu m) {
 		getMenuInflater().inflate(R.menu.settings, m);
 		AppStyles.setMenuIconColor(m, settings.getIconColor());
-		return super.onCreateOptionsMenu(m);
+		return true;
 	}
 
 
 	@Override
 	public boolean onOptionsItemSelected(@NonNull MenuItem item) {
 		if (item.getItemId() == R.id.settings_info) {
-			appInfo.show();
+			InfoDialog.show(this);
+			return true;
 		} else if (item.getItemId() == R.id.settings_licenses) {
-			license.show();
+			LicenseDialog.show(this);
+			return true;
 		}
-		return super.onOptionsItemSelected(item);
+		return false;
 	}
 
 
 	@Override
-	public void onConfirm(int type, boolean rememberChoice) {
-		// confirm log out
+	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == REQUEST_PERMISSION_NOTIFICATION) {
+			if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				PushSubscription.subscripe(getApplicationContext());
+				WebPushDialog.show(this);
+			} else {
+				enablePush.setChecked(false);
+			}
+		}
+	}
+
+
+	@Override
+	public void onConfirm(int type) {
+		// remove account from database
 		if (type == ConfirmDialog.APP_LOG_OUT) {
-			settings.logout();
-			// remove account from database
-			AccountDatabase accountDB = new AccountDatabase(this);
-			accountDB.removeLogin(settings.getCurrentUserId());
-			setResult(RETURN_APP_LOGOUT);
-			finish();
+			settings.setLogin(null, true);
+			databaseAction.execute(new DatabaseAction.Param(DatabaseAction.Param.LOGOUT), databaseResult);
 		}
 		// confirm delete app data and cache
 		else if (type == ConfirmDialog.DELETE_APP_DATA) {
-			DatabaseAdapter.deleteDatabase(this);
-			setResult(RETURN_DATA_CLEARED);
+			databaseAction.execute(new DatabaseAction.Param(DatabaseAction.Param.DELETE), databaseResult);
 		}
 		// confirm leaving without saving proxy changes
 		else if (type == ConfirmDialog.WRONG_PROXY) {
-			// exit without saving proxy settings
 			finish();
 		}
 	}
@@ -337,181 +329,80 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	@Override
 	public void onClick(View v) {
 		// delete database
-		if (v.getId() == R.id.delete_db) {
-			confirmDialog.show(ConfirmDialog.DELETE_APP_DATA);
+		if (v.getId() == R.id.page_settings_button_delete_data) {
+			ConfirmDialog.show(this, ConfirmDialog.DELETE_APP_DATA, null);
 		}
-		// logout from twitter
-		else if (v.getId() == R.id.logout) {
-			confirmDialog.show(ConfirmDialog.APP_LOG_OUT);
+		// logout
+		else if (v.getId() == R.id.page_settings_button_logout) {
+			ConfirmDialog.show(this, ConfirmDialog.APP_LOG_OUT, null);
 		}
-		// set background color
-		else if (v.getId() == R.id.color_background) {
-			mode = COLOR_BACKGROUND;
-			color = settings.getBackgroundColor();
-			setColor(color, false);
-		}
-		// set font color
-		else if (v.getId() == R.id.color_text) {
-			mode = COLOR_TEXT;
-			color = settings.getFontColor();
-			setColor(color, false);
-		}
-		// set popup color
-		else if (v.getId() == R.id.color_window) {
-			mode = COLOR_WINDOW;
-			color = settings.getPopupColor();
-			setColor(color, false);
-		}
-		// set highlight color
-		else if (v.getId() == R.id.highlight_color) {
-			mode = COLOR_HIGHLIGHT;
-			color = settings.getHighlightColor();
-			setColor(color, false);
-		}
-		// set card color
-		else if (v.getId() == R.id.color_card) {
-			mode = COLOR_CARD;
-			color = settings.getCardColor();
-			setColor(color, true);
-		}
-		// set icon color
-		else if (v.getId() == R.id.color_icon) {
-			mode = COLOR_ICON;
-			color = settings.getIconColor();
-			setColor(color, false);
-		}
-		// set retweet icon color
-		else if (v.getId() == R.id.color_rt) {
-			mode = COLOR_RETWEET;
-			color = settings.getRetweetIconColor();
-			setColor(color, false);
-		}
-		// set favorite icon color
-		else if (v.getId() == R.id.color_fav) {
-			mode = COLOR_FAVORITE;
-			color = settings.getFavoriteIconColor();
-			setColor(color, false);
-		}
-		// set follow icon color
-		else if (v.getId() == R.id.color_f_req) {
-			mode = COLOR_FOLLOW_REQUEST;
-			color = settings.getFollowPendingColor();
-			setColor(color, false);
-		}
-		// set follow icon color
-		else if (v.getId() == R.id.color_follow) {
-			mode = COLOR_FOLLOWING;
-			color = settings.getFollowIconColor();
-			setColor(color, false);
-		}
-	}
-
-
-	@Override
-	public void onDismiss(DialogInterface d) {
-		if (d == color_dialog_selector) {
-			switch (mode) {
-				case COLOR_BACKGROUND:
-					settings.setBackgroundColor(color);
-					fontAdapter.notifyDataSetChanged();
-					scaleAdapter.notifyDataSetChanged();
-					if (settings.isLoggedIn()) {
-						locationAdapter.notifyDataSetChanged();
-					}
-					AppStyles.setTheme(root, settings.getBackgroundColor());
-					setButtonColors();
-					break;
-
-				case COLOR_TEXT:
-					settings.setFontColor(color);
-					fontAdapter.notifyDataSetChanged();
-					scaleAdapter.notifyDataSetChanged();
-					if (settings.isLoggedIn()) {
-						locationAdapter.notifyDataSetChanged();
-					}
-					AppStyles.setTheme(root, settings.getBackgroundColor());
-					setButtonColors();
-					break;
-
-				case COLOR_WINDOW:
-					settings.setPopupColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_WINDOW], color);
-					break;
-
-				case COLOR_HIGHLIGHT:
-					settings.setHighlightColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_HIGHLIGHT], color);
-					break;
-
-				case COLOR_CARD:
-					settings.setCardColor(color);
-					fontAdapter.notifyDataSetChanged();
-					scaleAdapter.notifyDataSetChanged();
-					if (settings.isLoggedIn()) {
-						locationAdapter.notifyDataSetChanged();
-					}
-					AppStyles.setTheme(root, settings.getBackgroundColor());
-					setButtonColors();
-					break;
-
-				case COLOR_ICON:
-					settings.setIconColor(color);
-					invalidateOptionsMenu();
-					AppStyles.setTheme(root, settings.getBackgroundColor());
-					setButtonColors();
-					break;
-
-				case COLOR_RETWEET:
-					settings.setRetweetIconColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_RETWEET], color);
-					break;
-
-				case COLOR_FAVORITE:
-					settings.setFavoriteIconColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_FAVORITE], color);
-					break;
-
-				case COLOR_FOLLOW_REQUEST:
-					settings.setFollowPendingColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_FOLLOW_REQUEST], color);
-					break;
-
-				case COLOR_FOLLOWING:
-					settings.setFollowIconColor(color);
-					AppStyles.setColorButton(colorButtons[COLOR_FOLLOWING], color);
-					break;
+		// show push configuration dialog
+		else if (v.getId() == R.id.page_settings_enable_push_label) {
+			if (enablePush.isChecked()) {
+				WebPushDialog.show(this);
 			}
 		}
+		// set background color
+		else if (v.getId() == R.id.page_settings_color_background) {
+			int color = settings.getBackgroundColor();
+			ColorPickerDialog.show(this, color, COLOR_BACKGROUND, false);
+		}
+		// set font color
+		else if (v.getId() == R.id.page_settings_color_text) {
+			int color = settings.getTextColor();
+			ColorPickerDialog.show(this, color, COLOR_TEXT, false);
+		}
+		// set popup color
+		else if (v.getId() == R.id.page_settings_color_window) {
+			int color = settings.getPopupColor();
+			ColorPickerDialog.show(this, color, COLOR_WINDOW, false);
+		}
+		// set highlight color
+		else if (v.getId() == R.id.page_settings_highlight_color) {
+			int color = settings.getHighlightColor();
+			ColorPickerDialog.show(this, color, COLOR_HIGHLIGHT, false);
+		}
+		// set card color
+		else if (v.getId() == R.id.page_settings_color_card) {
+			int color = settings.getCardColor();
+			ColorPickerDialog.show(this, color, COLOR_CARD, true);
+		}
+		// set icon color
+		else if (v.getId() == R.id.page_settings_color_icon) {
+			int color = settings.getIconColor();
+			ColorPickerDialog.show(this, color, COLOR_ICON, false);
+		}
+		// set repost icon color
+		else if (v.getId() == R.id.page_settings_color_repost) {
+			int color = settings.getRepostIconColor();
+			ColorPickerDialog.show(this, color, COLOR_REPOST, false);
+		}
+		// set favorite icon color
+		else if (v.getId() == R.id.page_settings_color_favorite) {
+			int color = settings.getFavoriteIconColor();
+			ColorPickerDialog.show(this, color, COLOR_FAVORITE, false);
+		}
+		// set follow icon color
+		else if (v.getId() == R.id.page_settings_color_follow) {
+			int color = settings.getFollowIconColor();
+			ColorPickerDialog.show(this, color, COLOR_FOLLOWING, false);
+		}
 	}
 
 
+	@SuppressLint("InlinedApi")
 	@Override
 	public void onCheckedChanged(CompoundButton c, boolean checked) {
 		// toggle image loading
-		if (c.getId() == R.id.toggleImg) {
+		if (c.getId() == R.id.page_settings_enable_images) {
 			settings.setImageLoad(checked);
-			if (checked) {
-				hqImageText.setVisibility(VISIBLE);
-				hqImage.setVisibility(VISIBLE);
-			} else {
-				hqImageText.setVisibility(GONE);
-				hqImage.setVisibility(GONE);
-			}
-		}
-		// toggle automatic answer load
-		else if (c.getId() == R.id.toggleAns) {
-			settings.setAnswerLoad(checked);
-		}
-		// enable high quality images
-		else if (c.getId() == R.id.settings_image_hq) {
-			settings.setHighQualityImage(checked);
 		}
 		// enable toolbar overlap
-		else if (c.getId() == R.id.settings_toolbar_ov) {
+		else if (c.getId() == R.id.page_settings_toolbar_collapse) {
 			settings.setToolbarOverlap(checked);
 		}
 		// enable like
-		else if (c.getId() == R.id.enable_like) {
+		else if (c.getId() == R.id.page_settings_enable_like) {
 			settings.enableLike(checked);
 			if (checked) {
 				colorButtons[COLOR_FAVORITE].setText(R.string.settings_color_like);
@@ -519,77 +410,84 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 				colorButtons[COLOR_FAVORITE].setText(R.string.settings_color_fav);
 			}
 		}
-		// enable alternative Twitter service
-		else if (c.getId() == R.id.settings_enable_twitter_alt) {
-			settings.setTwitterAlt(checked);
+		// enable status indicators
+		else if (c.getId() == R.id.page_settings_enable_status_indicators) {
+			settings.enableStatusIndicators(checked);
 		}
-		// enable tweet indicators
-		else if (c.getId() == R.id.enable_tweet_indicators) {
-			settings.enableTweetIndicators(checked);
+		// enable floating button
+		else if (c.getId() == R.id.page_settings_enable_floating_button) {
+			settings.enableFloatingButton(checked);
 		}
-		// enable link preview
-		else if (c.getId() == R.id.settings_enable_prev) {
-			settings.setLinkPreview(checked);
+		// enable/disable push notification
+		else if (c.getId() == R.id.page_settings_enable_push) {
+			if (checked) {
+				if (ActivityCompat.checkSelfPermission(this, POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+					ActivityCompat.requestPermissions(this, new String[]{POST_NOTIFICATIONS}, REQUEST_PERMISSION_NOTIFICATION);
+				} else {
+					PushSubscription.subscripe(getApplicationContext());
+					WebPushDialog.show(this);
+				}
+			} else {
+				PushSubscription.unsubscripe(this);
+			}
+			settings.setPushEnabled(checked);
 		}
 		// enable proxy settings
-		else if (c.getId() == R.id.settings_enable_proxy) {
+		else if (c.getId() == R.id.page_settings_enable_proxy) {
 			if (checked) {
-				proxyAddr.setVisibility(VISIBLE);
-				proxyPort.setVisibility(VISIBLE);
-				enableAuth.setVisibility(VISIBLE);
-				enableAuthTxt.setVisibility(VISIBLE);
+				proxy_address.setVisibility(View.VISIBLE);
+				proxy_port.setVisibility(View.VISIBLE);
+				enable_auth.setVisibility(View.VISIBLE);
+				enable_auth_label.setVisibility(View.VISIBLE);
 			} else {
-				proxyAddr.setVisibility(GONE);
-				proxyPort.setVisibility(GONE);
-				enableAuthTxt.setVisibility(GONE);
-				enableAuth.setVisibility(GONE);
-				enableAuth.setChecked(false);
+				proxy_address.setVisibility(View.GONE);
+				proxy_port.setVisibility(View.GONE);
+				enable_auth_label.setVisibility(View.GONE);
+				enable_auth.setVisibility(View.GONE);
+				enable_auth.setChecked(false);
 			}
 		}
-		//enable proxy authentication
-		else if (c.getId() == R.id.settings_enable_auth) {
+		// enable proxy authentication
+		else if (c.getId() == R.id.page_settings_enable_proxyauth) {
 			if (checked) {
-				proxyUser.setVisibility(VISIBLE);
-				proxyPass.setVisibility(VISIBLE);
+				proxy_user.setVisibility(View.VISIBLE);
+				proxy_pass.setVisibility(View.VISIBLE);
 			} else {
-				proxyUser.setVisibility(GONE);
-				proxyPass.setVisibility(GONE);
+				proxy_user.setVisibility(View.GONE);
+				proxy_pass.setVisibility(View.GONE);
 			}
 		}
-		// enable custom API setup
-		else if (c.getId() == R.id.settings_set_custom_keys) {
-			if (checked) {
-				api_key1.setVisibility(VISIBLE);
-				api_key2.setVisibility(VISIBLE);
-				api_info.setVisibility(VISIBLE);
-			} else {
-				api_key1.setVisibility(GONE);
-				api_key2.setVisibility(GONE);
-				api_info.setVisibility(GONE);
-			}
+		// hide sensitive content
+		else if (c.getId() == R.id.page_settings_sensitive_enable) {
+			settings.hideSensitive(checked);
+		}
+		// use chronological ordered timeline
+		else if (c.getId() == R.id.page_settings_chronological_timeline_sw) {
+			settings.enableChronologicalTimeline(checked);
 		}
 	}
 
 
 	@Override
 	public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-		// Trend location spinner
-		if (parent.getId() == R.id.spinner_woeid) {
-			settings.setTrendLocation(locationAdapter.getItem(position));
-		}
 		// Font type spinner
-		else if (parent.getId() == R.id.spinner_font) {
+		if (parent.getId() == R.id.page_settings_font_selector) {
 			settings.setFontIndex(position);
 			AppStyles.setFontStyle(root);
-			if (settings.isLoggedIn()) {
-				locationAdapter.notifyDataSetChanged();
-			}
 		}
 		// Font scale spinner
-		else if (parent.getId() == R.id.spinner_scale) {
+		else if (parent.getId() == R.id.page_settings_textscale_selector) {
 			settings.setScaleIndex(position);
-			AppStyles.setFontStyle(root);
-			Toast.makeText(this, R.string.info_restart_app_on_change, Toast.LENGTH_SHORT).show();
+			AppStyles.updateFontScale(this);
+			setResult(RETURN_FONT_SCALE_CHANGED);
+		} else if (parent.getId() == R.id.page_settings_public_timeline_selector) {
+			if (position == 0) {
+				settings.setPublicTimeline(GlobalSettings.TIMELINE_COMBINED);
+			} else if (position == 1) {
+				settings.setPublicTimeline(GlobalSettings.TIMELINE_LOCAL);
+			} else if (position == 2) {
+				settings.setPublicTimeline(GlobalSettings.TIMELINE_REMOTE);
+			}
 		}
 	}
 
@@ -600,8 +498,64 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 
 
 	@Override
-	public void onColorChanged(int i) {
-		color = i;
+	public void onColorSelected(int type, int color) {
+		switch (type) {
+			case COLOR_BACKGROUND:
+				settings.setBackgroundColor(color);
+				fontAdapter.notifyDataSetChanged();
+				scaleAdapter.notifyDataSetChanged();
+				AppStyles.setTheme(root);
+				setButtonColors();
+				break;
+
+			case COLOR_TEXT:
+				settings.setTextColor(color);
+				fontAdapter.notifyDataSetChanged();
+				scaleAdapter.notifyDataSetChanged();
+				AppStyles.setTheme(root);
+				setButtonColors();
+				break;
+
+			case COLOR_WINDOW:
+				settings.setPopupColor(color);
+				AppStyles.setColorButton(colorButtons[COLOR_WINDOW], color);
+				break;
+
+			case COLOR_HIGHLIGHT:
+				settings.setHighlightColor(color);
+				AppStyles.setColorButton(colorButtons[COLOR_HIGHLIGHT], color);
+				break;
+
+			case COLOR_CARD:
+				settings.setCardColor(color);
+				fontAdapter.notifyDataSetChanged();
+				scaleAdapter.notifyDataSetChanged();
+				AppStyles.setTheme(root);
+				setButtonColors();
+				break;
+
+			case COLOR_ICON:
+				settings.setIconColor(color);
+				invalidateOptionsMenu();
+				AppStyles.setTheme(root);
+				setButtonColors();
+				break;
+
+			case COLOR_REPOST:
+				settings.setRepostIconColor(color);
+				AppStyles.setColorButton(colorButtons[COLOR_REPOST], color);
+				break;
+
+			case COLOR_FAVORITE:
+				settings.setFavoriteIconColor(color);
+				AppStyles.setColorButton(colorButtons[COLOR_FAVORITE], color);
+				break;
+
+			case COLOR_FOLLOWING:
+				settings.setFollowIconColor(color);
+				AppStyles.setColorButton(colorButtons[COLOR_FOLLOWING], color);
+				break;
+		}
 	}
 
 
@@ -623,41 +577,23 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	}
 
 	/**
-	 * set location information from twitter
-	 *
-	 * @param data location data
+	 * called from {@link DatabaseAction}
 	 */
-	public void setLocationData(List<Location> data) {
-		locationAdapter.setData(data);
-		int position = locationAdapter.getPosition(settings.getTrendLocation());
-		if (position > 0)
-			locationSpinner.setSelection(position, false);
-		locationSpinner.setOnItemSelectedListener(this);
-	}
+	private void onDatabaseResult(@NonNull DatabaseAction.Result result) {
+		switch (result.action) {
+			case DatabaseAction.Result.DELETE:
+				Toast.makeText(getApplicationContext(), R.string.info_database_cleared, Toast.LENGTH_SHORT).show();
+				break;
 
-	/**
-	 * called when an error occurs
-	 *
-	 * @param err exception from twitter
-	 */
-	public void onError(ErrorHandler.TwitterError err) {
-		ErrorHandler.handleFailure(this, err);
-	}
+			case DatabaseAction.Result.LOGOUT:
+				setResult(RETURN_APP_LOGOUT);
+				finish();
+				break;
 
-	/**
-	 * show color picker dialog with preselected color
-	 *
-	 * @param preColor    preselected color
-	 * @param enableAlpha true to enable alpha slider
-	 */
-	private void setColor(int preColor, boolean enableAlpha) {
-		if (color_dialog_selector == null || !color_dialog_selector.isShowing()) {
-			color_dialog_selector = ColorPickerDialogBuilder.with(this)
-					.showAlphaSlider(enableAlpha).initialColor(preColor)
-					.wheelType(ColorPickerView.WHEEL_TYPE.CIRCLE)
-					.setOnColorChangedListener(this).density(15).build();
-			color_dialog_selector.setOnDismissListener(this);
-			color_dialog_selector.show();
+			case DatabaseAction.Result.ERROR:
+				Toast.makeText(getApplicationContext(), R.string.error_database_cleared, Toast.LENGTH_SHORT).show();
+				break;
+
 		}
 	}
 
@@ -680,51 +616,37 @@ public class SettingsActivity extends AppCompatActivity implements OnClickListen
 	private boolean saveConnectionSettings() {
 		boolean checkPassed = true;
 		// check if proxy settings are correct
-		if (enableProxy.isChecked()) {
-			checkPassed = proxyAddr.length() > 0 && proxyPort.length() > 0;
+		if (enable_proxy.isChecked()) {
+			checkPassed = proxy_address.length() > 0 && proxy_port.length() > 0;
 			// check IP address
 			if (checkPassed) {
-				Matcher ipMatch = Patterns.IP_ADDRESS.matcher(proxyAddr.getText());
+				Matcher ipMatch = Patterns.IP_ADDRESS.matcher(proxy_address.getText());
 				checkPassed = ipMatch.matches();
 			}
 			// check Port number
 			if (checkPassed) {
 				int port = 0;
-				String portStr = proxyPort.getText().toString();
+				String portStr = proxy_port.getText().toString();
 				if (!portStr.isEmpty()) {
 					port = Integer.parseInt(portStr);
 				}
 				checkPassed = port > 0 && port < 65536;
 			}
 			// check user login
-			if (enableAuth.isChecked() && checkPassed) {
-				checkPassed = proxyUser.length() > 0 && proxyPass.length() > 0;
+			if (enable_auth.isChecked() && checkPassed) {
+				checkPassed = proxy_user.length() > 0 && proxy_pass.length() > 0;
 			}
 			// save settings if correct
 			if (checkPassed) {
-				String proxyAddrStr = proxyAddr.getText().toString();
-				String proxyPortStr = proxyPort.getText().toString();
-				String proxyUserStr = proxyUser.getText().toString();
-				String proxyPassStr = proxyPass.getText().toString();
+				String proxyAddrStr = proxy_address.getText().toString();
+				String proxyPortStr = proxy_port.getText().toString();
+				String proxyUserStr = proxy_user.getText().toString();
+				String proxyPassStr = proxy_pass.getText().toString();
 				settings.setProxyServer(proxyAddrStr, proxyPortStr, proxyUserStr, proxyPassStr);
-				settings.setProxyEnabled(true);
-				settings.setProxyAuthSet(enableAuth.isChecked());
+				settings.setProxyAuthSet(enable_auth.isChecked());
 			}
 		} else {
 			settings.clearProxyServer();
-			settings.setIgnoreProxyWarning(false);
-		}
-		// check if API-keys are correctly set
-		if (enableAPI.isChecked()) {
-			if (api_key1.length() > 0 && api_key2.length() > 0) {
-				String key1 = api_key1.getText().toString();
-				String key2 = api_key2.getText().toString();
-				settings.setCustomAPI(key1, key2);
-			} else {
-				checkPassed = false;
-			}
-		} else {
-			settings.removeCustomAPI();
 		}
 		return checkPassed;
 	}

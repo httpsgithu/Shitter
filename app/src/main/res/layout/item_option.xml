@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:padding="@dimen/item_option_layout_padding">
+
+	<ImageView
+		android:id="@+id/item_option_voted_icon"
+		android:layout_width="@dimen/item_option_icon_size"
+		android:layout_height="@dimen/item_option_icon_size"
+		android:contentDescription="@string/description_poll_vote_icon"
+		app:layout_constraintStart_toStartOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent" />
+
+	<TextView
+		android:id="@+id/item_option_name"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:textSize="@dimen/item_option_text_size"
+		android:maxLines="2"
+		android:ellipsize="end"
+		android:layout_marginStart="@dimen/item_option_layout_padding"
+		android:layout_marginEnd="@dimen/item_option_layout_padding"
+		app:layout_constraintHorizontal_weight="3"
+		app:layout_constraintStart_toEndOf="@id/item_option_voted_icon"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toStartOf="@id/item_option_count_text" />
+
+	<SeekBar
+		android:id="@+id/item_option_count_bar"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:thumb="@android:color/transparent"
+		android:layout_marginStart="@dimen/item_option_layout_padding"
+		app:layout_constraintHorizontal_weight="3"
+		app:layout_constraintStart_toEndOf="@id/item_option_voted_icon"
+		app:layout_constraintTop_toBottomOf="@id/item_option_name"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+	<TextView
+		android:id="@+id/item_option_count_text"
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:textSize="@dimen/item_option_text_size"
+		android:lines="1"
+		android:gravity="end"
+		app:layout_constraintHorizontal_weight="1"
+		app:layout_constraintStart_toEndOf="@id/item_option_name"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

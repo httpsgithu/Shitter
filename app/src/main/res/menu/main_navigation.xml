@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+	<item
+		android:id="@+id/menu_navigator_profile_settings"
+		android:title="@string/menu_edit_profile" />
+
+	<item
+		android:id="@+id/menu_navigator_settings"
+		android:title="@string/menu_open_settings" />
+
+	<item
+		android:id="@+id/menu_navigator_account"
+		android:title="@string/menu_select_account" />
+
+	<item
+		android:id="@+id/menu_navigator_lists"
+		android:title="@string/menu_goto_lists" />
+
+	<item
+		android:id="@+id/menu_navigator_tags"
+		android:title="@string/menu_tags" />
+
+	<item
+		android:id="@+id/menu_navigator_filter"
+		android:title="@string/menu_open_filter" />
+
+	<item
+		android:id="@+id/menu_navigator_schedule"
+		android:title="@string/menu_schedule" />
+
+	<item
+		android:id="@+id/menu_navigator_status"
+		android:title="@string/menu_status" />
+
+	<item
+		android:id="@+id/menu_navigator_instance"
+		android:title="@string/menu_instance_info" />
+</menu>

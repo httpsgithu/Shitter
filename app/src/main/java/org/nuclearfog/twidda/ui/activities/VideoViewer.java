@@ -1,125 +1,96 @@
 package org.nuclearfog.twidda.ui.activities;
 
-import static android.media.MediaPlayer.MEDIA_ERROR_UNKNOWN;
-import static android.media.MediaPlayer.MEDIA_INFO_BUFFERING_END;
-import static android.media.MediaPlayer.MEDIA_INFO_BUFFERING_START;
-import static android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START;
-import static android.media.MediaPlayer.OnCompletionListener;
-import static android.media.MediaPlayer.OnErrorListener;
-import static android.media.MediaPlayer.OnInfoListener;
-import static android.media.MediaPlayer.OnPreparedListener;
-import static android.view.MotionEvent.ACTION_DOWN;
-import static android.view.MotionEvent.ACTION_UP;
-import static android.view.View.GONE;
-import static android.view.View.INVISIBLE;
-import static android.view.View.OnClickListener;
-import static android.view.View.OnTouchListener;
-import static android.view.View.VISIBLE;
-import static android.widget.Toast.LENGTH_SHORT;
-
-import android.content.ActivityNotFoundException;
+import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnDismissListener;
 import android.content.Intent;
-import android.graphics.PixelFormat;
-import android.location.Location;
-import android.media.MediaPlayer;
+import android.content.res.Configuration;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.MotionEvent;
+import android.os.Handler;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageButton;
-import android.widget.ProgressBar;
-import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
-import android.widget.TextView;
+import android.view.WindowManager;
 import android.widget.Toast;
-import android.widget.VideoView;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.datasource.ContentDataSource;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.okhttp.OkHttpDataSource;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.Renderer;
+import androidx.media3.exoplayer.RenderersFactory;
+import androidx.media3.exoplayer.audio.AudioRendererEventListener;
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer;
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
+import androidx.media3.exoplayer.metadata.MetadataOutput;
+import androidx.media3.exoplayer.source.ProgressiveMediaSource;
+import androidx.media3.exoplayer.text.TextOutput;
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer;
+import androidx.media3.exoplayer.video.VideoRendererEventListener;
+import androidx.media3.extractor.DefaultExtractorsFactory;
+import androidx.media3.ui.PlayerView;
 
 import org.nuclearfog.twidda.R;
-import org.nuclearfog.twidda.backend.async.SeekbarUpdater;
+import org.nuclearfog.twidda.backend.helper.MediaStatus;
 import org.nuclearfog.twidda.backend.utils.AppStyles;
-import org.nuclearfog.twidda.backend.utils.StringTools;
-import org.nuclearfog.twidda.database.GlobalSettings;
-import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog;
-import org.nuclearfog.twidda.ui.dialogs.ConfirmDialog.OnConfirmListener;
+import org.nuclearfog.twidda.backend.utils.ConnectionBuilder;
+import org.nuclearfog.twidda.backend.utils.LinkUtils;
+import org.nuclearfog.twidda.model.Media;
+import org.nuclearfog.twidda.ui.dialogs.DescriptionDialog;
+import org.nuclearfog.twidda.ui.dialogs.DescriptionDialog.DescriptionCallback;
+import org.nuclearfog.twidda.ui.dialogs.MetaDialog;
+import org.nuclearfog.twidda.ui.views.DescriptionView;
+
+import java.io.Serializable;
 
 /**
  * video player activity to show local and online videos/animations
  *
  * @author nuclearfog
  */
-public class VideoViewer extends MediaActivity implements OnSeekBarChangeListener, OnCompletionListener, OnDismissListener,
-		OnPreparedListener, OnInfoListener, OnErrorListener, OnClickListener, OnTouchListener, OnConfirmListener {
+@SuppressLint("UnsafeOptInUsageError")
+public class VideoViewer extends AppCompatActivity implements Player.Listener, DescriptionCallback, RenderersFactory {
 
 	/**
-	 * key for an Uri array with local links
-	 * value type is {@link Uri}
+	 * bundle key used for media information
+	 * value type can be {@link Media} or {@link MediaStatus}
 	 */
-	public static final String VIDEO_URI = "media_uri";
+	public static final String KEY_VIDEO_DATA = "media-video";
 
 	/**
-	 * Key to enable extra layouts for a video
-	 * value type is Boolean
+	 * bundle key used to save/restore last player position
+	 * value type is long
 	 */
-	public static final String ENABLE_VIDEO_CONTROLS = "enable_controls";
+	private static final String KEY_LAST_POS = "player-last-pos";
 
 	/**
-	 * playback status used if player is idle
+	 * Activity result code used to update {@link MediaStatus} information
 	 */
-	private static final int IDLE = -1;
+	public static final int RESULT_VIDEO_UPDATE = 0x1528;
 
 	/**
-	 * playback status used for "play" mode
+	 * online video cache size
 	 */
-	private static final int PLAY = 1;
-
-	/**
-	 * playback status used for "pause" mode
-	 */
-	private static final int PAUSE = 2;
-
-	/**
-	 * playback status used for "forward" mode
-	 */
-	private static final int FORWARD = 3;
-
-	/**
-	 * playback status used for "backward" mode
-	 */
-	private static final int BACKWARD = 4;
-
-	/**
-	 * refresh time for video progress update in milliseconds
-	 */
-	private static final int PROGRESS_UPDATE = 1000;
-
-	/**
-	 * speed ratio for "backward" and "forward"
-	 */
-	private static final int SPEED_FACTOR = 6;
+	private static final int CACHE_SIZE = 64000000;
 
 	@Nullable
-	private SeekbarUpdater seekUpdate;
-	private GlobalSettings settings;
+	private DescriptionView descriptionView; // only used in portrait layout
+	private Toolbar toolbar;
+	private PlayerView playerView;
 
-	private ConfirmDialog confirmDialog;
-
-	private TextView duration, position;
-	private ProgressBar loadingCircle;
-	private SeekBar video_progress;
-	private ImageButton playPause;
-	private VideoView videoView;
-	private ViewGroup controlPanel;
-
-	private boolean enableVideoExtras;
-	private int playStatus = IDLE;
+	private ExoPlayer player;
+	@Nullable
+	private MediaStatus mediaStatus;
+	@Nullable
+	private Media media;
 
 
 	@Override
@@ -129,311 +100,208 @@ public class VideoViewer extends MediaActivity implements OnSeekBarChangeListene
 
 
 	@Override
-	protected void onCreate(@Nullable Bundle b) {
-		super.onCreate(b);
+	protected void onCreate(@Nullable Bundle savedInstance) {
+		super.onCreate(savedInstance);
 		setContentView(R.layout.page_video);
-		ImageButton forward = findViewById(R.id.controller_forward);
-		ImageButton backward = findViewById(R.id.controller_backward);
-		ImageButton share = findViewById(R.id.controller_share);
-		loadingCircle = findViewById(R.id.media_progress);
-		controlPanel = findViewById(R.id.media_controlpanel);
-		videoView = findViewById(R.id.video_view);
-		video_progress = findViewById(R.id.controller_progress);
-		playPause = findViewById(R.id.controller_play);
-		duration = findViewById(R.id.controller_duration);
-		position = findViewById(R.id.controller_position);
+		playerView = findViewById(R.id.page_video_player);
+		toolbar = findViewById(R.id.page_video_toolbar);
+		descriptionView = findViewById(R.id.page_video_description);
+		player = new ExoPlayer.Builder(this, this).build();
 
-		confirmDialog = new ConfirmDialog(this);
+		toolbar.setTitle("");
+		setSupportActionBar(toolbar);
+		playerView.setShowNextButton(false);
+		playerView.setShowPreviousButton(false);
 
-		settings = GlobalSettings.getInstance(this);
-		AppStyles.setProgressColor(loadingCircle, settings.getHighlightColor());
-		AppStyles.setTheme(controlPanel, settings.getBackgroundColor());
-		videoView.setZOrderMediaOverlay(true); // disable black background
-		videoView.getHolder().setFormat(PixelFormat.TRANSPARENT);
-
-		// get extras
-		enableVideoExtras = getIntent().getBooleanExtra(ENABLE_VIDEO_CONTROLS, false);
-		Uri link = getIntent().getParcelableExtra(VIDEO_URI);
-
-		if (link != null) {
-			// enable control bar if set
-			if (enableVideoExtras) {
-				controlPanel.setVisibility(VISIBLE);
-				if (link.getScheme().startsWith("http")) {
-					// attach link to share button
-					share.setTag(link);
-				} else {
-					share.setVisibility(GONE);
-				}
-				seekUpdate = new SeekbarUpdater(this, PROGRESS_UPDATE);
-			}
-			videoView.setVideoURI(link);
+		long lastPos;
+		Serializable serializedData;
+		ProgressiveMediaSource mediaSource = null;
+		if (savedInstance != null) {
+			serializedData = savedInstance.getSerializable(KEY_VIDEO_DATA);
+			lastPos = savedInstance.getLong(KEY_LAST_POS, 0L);
+		} else {
+			serializedData = getIntent().getSerializableExtra(KEY_VIDEO_DATA);
+			lastPos = getIntent().getLongExtra(KEY_LAST_POS, 0L);
 		}
-		share.setOnClickListener(this);
-		playPause.setOnClickListener(this);
-		videoView.setOnTouchListener(this);
-		backward.setOnTouchListener(this);
-		forward.setOnTouchListener(this);
-		videoView.setOnPreparedListener(this);
-		videoView.setOnCompletionListener(this);
-		videoView.setOnErrorListener(this);
-		video_progress.setOnSeekBarChangeListener(this);
-		confirmDialog.setConfirmListener(this);
-		confirmDialog.setOnDismissListener(this);
+		// check if video is online
+		if (serializedData instanceof Media) {
+			this.media = (Media) serializedData;
+			MediaItem mediaItem = MediaItem.fromUri(media.getUrl());
+			DataSource.Factory dataSourceFactory = new OkHttpDataSource.Factory(ConnectionBuilder.create(this, CACHE_SIZE));
+			if (media.getMediaType() != Media.VIDEO) {
+				playerView.setUseController(false);
+				player.setRepeatMode(Player.REPEAT_MODE_ONE);
+			}
+			if (descriptionView != null && !media.getDescription().isEmpty()) {
+				descriptionView.setVisibility(View.VISIBLE);
+				descriptionView.setDescription(media.getDescription());
+			}
+			mediaSource = new ProgressiveMediaSource.Factory(dataSourceFactory, new DefaultExtractorsFactory()).createMediaSource(mediaItem);
+		}
+		// check if viceo is from an editable status
+		else if (serializedData instanceof MediaStatus) {
+			this.mediaStatus = (MediaStatus) serializedData;
+			if (mediaStatus.getPath() != null) {
+				DataSource.Factory dataSourceFactory;
+				MediaItem mediaItem = MediaItem.fromUri(mediaStatus.getPath());
+				if (mediaStatus.getPath().startsWith("http")) {
+					dataSourceFactory = new OkHttpDataSource.Factory(ConnectionBuilder.create(this, CACHE_SIZE));
+				} else {
+					dataSourceFactory = new DataSource.Factory() {
+						@NonNull
+						@Override
+						public DataSource createDataSource() {
+							return new ContentDataSource(getApplicationContext());
+						}
+					};
+				}
+				if (mediaStatus.getMediaType() != MediaStatus.VIDEO) {
+					playerView.setUseController(false);
+					player.setRepeatMode(Player.REPEAT_MODE_ONE);
+				}
+				if (descriptionView != null && !mediaStatus.getDescription().isEmpty()) {
+					descriptionView.setVisibility(View.VISIBLE);
+					descriptionView.setDescription(mediaStatus.getDescription());
+				}
+				mediaSource = new ProgressiveMediaSource.Factory(dataSourceFactory, new DefaultExtractorsFactory()).createMediaSource(mediaItem);
+			}
+		}
+		// prepare playback
+		if (mediaSource != null) {
+			player.setMediaSource(mediaSource);
+			playerView.setPlayer(player);
+			player.addListener(this);
+			player.prepare();
+			player.seekTo(lastPos);
+			player.setPlayWhenReady(true);
+		} else {
+			finish();
+		}
 	}
 
 
 	@Override
-	protected void onStop() {
-		super.onStop();
-		if (enableVideoExtras) {
-			videoView.pause();
-			setPlayPause(R.drawable.play);
-			playStatus = PAUSE;
+	protected void onPause() {
+		super.onPause();
+		if (player.isPlaying()) {
+			player.pause();
 		}
+	}
+
+
+	@Override
+	public void onBackPressed() {
+		if (mediaStatus != null) {
+			Intent intent = new Intent();
+			intent.putExtra(KEY_VIDEO_DATA, mediaStatus);
+			setResult(RESULT_VIDEO_UPDATE, intent);
+		}
+		player.stop();
+		super.onBackPressed();
+	}
+
+
+	@Override
+	protected void onSaveInstanceState(@NonNull Bundle outState) {
+		if (mediaStatus != null) {
+			outState.putSerializable(KEY_VIDEO_DATA, mediaStatus);
+		} else if (media != null) {
+			outState.putSerializable(KEY_VIDEO_DATA, media);
+		}
+		outState.putLong(KEY_LAST_POS, player.getCurrentPosition());
+		super.onSaveInstanceState(outState);
 	}
 
 
 	@Override
 	protected void onDestroy() {
-		if (seekUpdate != null)
-			seekUpdate.shutdown();
+		// remove player reference to prevent memory leak
+		player.release();
+		playerView.setPlayer(null);
 		super.onDestroy();
 	}
 
 
 	@Override
-	public void onClick(View v) {
-		// play/pause video
-		if (v.getId() == R.id.controller_play) {
-			if (playStatus == PAUSE) {
-				playStatus = PLAY;
-				if (!videoView.isPlaying())
-					videoView.start();
-				setPlayPause(R.drawable.pause);
-			} else if (playStatus == PLAY) {
-				playStatus = PAUSE;
-				if (videoView.isPlaying())
-					videoView.pause();
-				setPlayPause(R.drawable.play);
+	public void onConfigurationChanged(@NonNull Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+			getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+			toolbar.setVisibility(View.GONE);
+		} else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
+			getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+			toolbar.setVisibility(View.VISIBLE);
+		}
+	}
+
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.video, menu);
+		MenuItem menuOpenUrl = menu.findItem(R.id.menu_video_link);
+		MenuItem menuDescription = menu.findItem(R.id.menu_video_add_description);
+		MenuItem menuMeta = menu.findItem(R.id.menu_video_show_meta);
+		AppStyles.setMenuIconColor(menu, Color.WHITE);
+		menuOpenUrl.setVisible(media != null);
+		menuDescription.setVisible(mediaStatus != null);
+		menuMeta.setVisible(media != null && media.getMeta() != null);
+		return true;
+	}
+
+
+	@Override
+	public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+		if (item.getItemId() == R.id.menu_video_link) {
+			if (media != null) {
+				LinkUtils.openMediaLink(this, Uri.parse(media.getUrl()));
+			}
+		} else if (item.getItemId() == R.id.menu_video_show_meta) {
+			if (media != null && media.getMeta() != null) {
+				MetaDialog.show(this, media.getMeta());
+			}
+		} else if (item.getItemId() == R.id.menu_video_add_description) {
+			if (media != null) {
+				DescriptionDialog.show(this, media.getDescription());
+			} else {
+				DescriptionDialog.show(this, "");
 			}
 		}
-		// open link with another app
-		else if (v.getId() == R.id.controller_share) {
-			if (v.getTag() instanceof Uri) {
-				Intent intent = new Intent(Intent.ACTION_VIEW, (Uri) v.getTag());
-				try {
-					startActivity(intent);
-				} catch (ActivityNotFoundException err) {
-					Toast.makeText(this, R.string.error_connection_failed, LENGTH_SHORT).show();
-				}
-			}
+		return super.onOptionsItemSelected(item);
+	}
+
+
+	@Override
+	public void onDescriptionSet(String description) {
+		if (mediaStatus != null) {
+			mediaStatus.setDescription(description);
 		}
-	}
-
-
-	@Override
-	public boolean onTouch(View v, MotionEvent event) {
-		// fast backward
-		if (v.getId() == R.id.controller_backward) {
-			if (playStatus == PAUSE)
-				return false;
-			if (event.getAction() == ACTION_DOWN) {
-				playStatus = BACKWARD;
-				videoView.pause();
-				return true;
-			}
-			if (event.getAction() == ACTION_UP) {
-				playStatus = PLAY;
-				videoView.start();
-				return true;
-			}
-		}
-		// fast forward
-		else if (v.getId() == R.id.controller_forward) {
-			if (playStatus == PAUSE)
-				return false;
-			if (event.getAction() == ACTION_DOWN) {
-				playStatus = FORWARD;
-				videoView.pause();
-				return true;
-			}
-			if (event.getAction() == ACTION_UP) {
-				playStatus = PLAY;
-				videoView.start();
-				return true;
-			}
-		}
-		// show/hide control panel
-		else if (v.getId() == R.id.video_view) {
-			if (event.getAction() == ACTION_DOWN) {
-				if (enableVideoExtras) {
-					if (controlPanel.getVisibility() == VISIBLE) {
-						controlPanel.setVisibility(INVISIBLE);
-					} else {
-						controlPanel.setVisibility(VISIBLE);
-					}
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-
-	@Override
-	protected void onAttachLocation(@Nullable Location location) {
-	}
-
-
-	@Override
-	protected void onMediaFetched(int resultType, @NonNull Uri uri) {
-	}
-
-
-	@Override
-	public void onPrepared(MediaPlayer mp) {
-		// enable controls for video
-		if (enableVideoExtras) {
-			switch (playStatus) {
-				case IDLE:
-					// initialize seekbar
-					playStatus = PLAY;
-					video_progress.setMax(mp.getDuration());
-					duration.setText(StringTools.formatMediaTime(mp.getDuration()));
-					mp.setOnInfoListener(this);
-					// fall through
-
-				case PLAY:
-					// set video pos and start playback
-					mp.seekTo(video_progress.getProgress());
-					mp.start();
-					break;
-
-				case PAUSE:
-					// set only video pos
-					mp.seekTo(video_progress.getProgress());
-					break;
-			}
-		}
-		// setup video looping for gif
-		else {
-			loadingCircle.setVisibility(INVISIBLE);
-			mp.setLooping(true);
-			mp.start();
-		}
-	}
-
-
-	@Override
-	public boolean onInfo(MediaPlayer mp, int what, int extra) {
-		switch (what) {
-			case MEDIA_INFO_BUFFERING_END:
-			case MEDIA_INFO_VIDEO_RENDERING_START:
-				loadingCircle.setVisibility(INVISIBLE);
-				return true;
-
-			case MEDIA_INFO_BUFFERING_START:
-				loadingCircle.setVisibility(VISIBLE);
-				return true;
-		}
-		return false;
-	}
-
-
-	@Override
-	public boolean onError(MediaPlayer mp, int what, int extra) {
-		if (what == MEDIA_ERROR_UNKNOWN) {
-			confirmDialog.show(ConfirmDialog.VIDEO_ERROR);
-			return true;
-		}
-		return false;
-	}
-
-
-	@Override
-	public void onCompletion(MediaPlayer mp) {
-		setPlayPause(R.drawable.play);
-		video_progress.setProgress(0);
-		playStatus = PAUSE;
-	}
-
-
-	@Override
-	public void onStartTrackingTouch(SeekBar seekBar) {
-		videoView.pause();
-	}
-
-
-	@Override
-	public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-		position.setText(StringTools.formatMediaTime(progress));
-	}
-
-
-	@Override
-	public void onStopTrackingTouch(SeekBar seekBar) {
-		videoView.seekTo(seekBar.getProgress());
-		videoView.start();
-	}
-
-
-	@Override
-	public void onConfirm(int type, boolean rememberChoice) {
-		if (type == ConfirmDialog.VIDEO_ERROR) {
-			Uri link = getIntent().getParcelableExtra(VIDEO_URI);
-			if (link != null) {
-				// open link in a browser
-				Intent intent = new Intent(Intent.ACTION_VIEW);
-				intent.setData(link);
-				try {
-					startActivity(intent);
-				} catch (ActivityNotFoundException err) {
-					Toast.makeText(this, R.string.error_connection_failed, LENGTH_SHORT).show();
-					finish();
-				}
+		if (descriptionView != null) {
+			if (!description.trim().isEmpty()) {
+				descriptionView.setDescription(description);
+				descriptionView.setVisibility(View.VISIBLE);
+			} else {
+				descriptionView.setDescription("");
+				descriptionView.setVisibility(View.INVISIBLE);
 			}
 		}
 	}
 
 
 	@Override
-	public void onDismiss(DialogInterface dialog) {
+	public void onPlayerError(PlaybackException error) {
+		Toast.makeText(getApplicationContext(), "ExoPlayer: " + error.getErrorCodeName(), Toast.LENGTH_SHORT).show();
 		finish();
 	}
 
-	/**
-	 * updates controller panel SeekBar
-	 */
-	public void updateSeekBar() {
-		int videoPos = video_progress.getProgress();
-		switch (playStatus) {
-			case PLAY:
-				video_progress.setProgress(videoView.getCurrentPosition());
-				break;
 
-			case FORWARD:
-				videoPos += 2 * PROGRESS_UPDATE * SPEED_FACTOR;
-				if (videoPos > videoView.getDuration())
-					videoPos = videoView.getDuration();
-				videoView.seekTo(videoPos);
-				video_progress.setProgress(videoPos);
-				break;
-
-			case BACKWARD:
-				videoPos -= 2 * PROGRESS_UPDATE * SPEED_FACTOR;
-				if (videoPos < 0)
-					videoPos = 0;
-				videoView.seekTo(videoPos);
-				video_progress.setProgress(videoPos);
-				break;
-		}
-	}
-
-
-	private void setPlayPause(@DrawableRes int icon) {
-		playPause.setImageResource(icon);
-		AppStyles.setDrawableColor(playPause.getDrawable(), settings.getIconColor());
-		AppStyles.setButtonColor(playPause, settings.getFontColor());
+	@NonNull
+	@Override
+	public Renderer[] createRenderers(@NonNull Handler eventHandler, @NonNull VideoRendererEventListener videoRendererEventListener,
+	                                  @NonNull AudioRendererEventListener audioRendererEventListener, @NonNull TextOutput textRendererOutput,
+	                                  @NonNull MetadataOutput metadataRendererOutput) {
+		return new Renderer[]{
+				new MediaCodecVideoRenderer(getApplicationContext(), MediaCodecSelector.DEFAULT, 0L, eventHandler, videoRendererEventListener, 4),
+				new MediaCodecAudioRenderer(getApplicationContext(), MediaCodecSelector.DEFAULT, eventHandler, audioRendererEventListener)
+		};
 	}
 }

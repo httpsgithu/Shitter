@@ -7,7 +7,22 @@ import java.io.Serializable;
  *
  * @author nuclearfog
  */
-public interface UserList extends Serializable {
+public interface UserList extends Serializable, Comparable<UserList> {
+
+	/**
+	 * Show replies to no one
+	 */
+	int REPLIES_NONE = 0;
+
+	/**
+	 * Show replies to any followed user
+	 */
+	int REPLIES_FOLLOWING = 1;
+
+	/**
+	 * Show replies to members of the list
+	 */
+	int REPLIES_MEMBER = 2;
 
 	/**
 	 * @return ID of the user list
@@ -15,42 +30,23 @@ public interface UserList extends Serializable {
 	long getId();
 
 	/**
-	 * @return date of creation
-	 */
-	long getTimestamp();
-
-	/**
 	 * @return title of the list
 	 */
 	String getTitle();
 
 	/**
-	 * @return description of the list
+	 * @return Which replies should be shown in the list {@link #REPLIES_NONE ,#FOLLOWED,#LIST}
 	 */
-	String getDescription();
+	int getReplyPolicy();
 
 	/**
-	 * @return owner of the list
+	 * @return true if members of this list are excluded from the home timeline
 	 */
-	User getListOwner();
+	boolean isExclusive();
 
-	/**
-	 * @return true if list is private
-	 */
-	boolean isPrivate();
 
-	/**
-	 * @return true if current user is following the list
-	 */
-	boolean isFollowing();
-
-	/**
-	 * @return list member count
-	 */
-	int getMemberCount();
-
-	/**
-	 * @return list subscriber count
-	 */
-	int getSubscriberCount();
+	@Override
+	default int compareTo(UserList userlist) {
+		return Long.compare(userlist.getId(), getId());
+	}
 }

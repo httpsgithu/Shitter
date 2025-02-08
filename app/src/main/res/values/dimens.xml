@@ -2,17 +2,21 @@
 <resources>
 	<!--global dimens-->
 	<dimen name="toolbar_height">56dp</dimen>
+	<dimen name="toolbar_height_landscape">48dp</dimen>
+	<dimen name="toolbar_height_small">48dp</dimen>
+	<dimen name="tabs_indicator_height">2dp</dimen>
 	<dimen name="edittext_background_padding">5dp</dimen>
 	<dimen name="edittext_textsize">16sp</dimen>
 	<dimen name="edittext_margin">2dp</dimen>
+	<dimen name="floating_button_margin">20dp</dimen>
 
 	<!--dimens of page_settings.xml-->
 	<dimen name="settings_toolbar_height">@dimen/toolbar_height</dimen>
-	<dimen name="settings_color_button_height">42sp</dimen>
+	<dimen name="settings_color_button_height">38sp</dimen>
 	<dimen name="settings_color_button_margin">2dp</dimen>
 	<dimen name="settings_color_button_stroke_width">2dp</dimen>
 	<dimen name="settings_color_button_corner_radius">4dp</dimen>
-	<dimen name="settings_cardview_padding">10dp</dimen>
+	<dimen name="settings_cardview_padding">6dp</dimen>
 	<dimen name="settings_textsize">20sp</dimen>
 	<dimen name="settings_icon_size">20sp</dimen>
 	<dimen name="settings_textsize_small">12sp</dimen>
@@ -20,193 +24,167 @@
 	<dimen name="settings_button_margin">5dp</dimen>
 	<dimen name="settings_switch_margin">10dp</dimen>
 	<dimen name="settings_spinner_margin">10dp</dimen>
-	<dimen name="settings_column_margin">5dp</dimen>
+	<dimen name="settings_layout_margin">5dp</dimen>
 	<dimen name="settings_seek_number_width">30sp</dimen>
 
-	<!--dimens of page_tweet.xml-->
-	<dimen name="tweet_toolbar_height">@dimen/toolbar_height</dimen>
-	<dimen name="tweet_profile">56sp</dimen>
-	<dimen name="tweet_profileimage_margin">5dp</dimen>
-	<dimen name="tweet_textview_margin">5dp</dimen>
-	<dimen name="tweet_button_margin">5dp</dimen>
-	<dimen name="tweet_button_padding">5sp</dimen>
-	<dimen name="tweet_button_height">20sp</dimen>
-	<dimen name="tweet_button_media_width">58sp</dimen>
-	<dimen name="tweet_button_media_height">36sp</dimen>
-	<dimen name="tweet_padding_drawable">5dp</dimen>
-	<dimen name="tweet_textsize_small">12sp</dimen>
-	<dimen name="tweet_textsize">18sp</dimen>
-	<dimen name="tweet_textsize_locale">12sp</dimen>
-	<dimen name="tweet_button_drawable_padding">5dp</dimen>
-	<integer name="tweet_text_max_lines">5</integer>
+	<!--dimens of page_status.xml-->
+	<dimen name="page_status_profile">56sp</dimen>
+	<dimen name="page_status_profileimage_margin">5dp</dimen>
+	<dimen name="page_status_textview_margin">5dp</dimen>
+	<dimen name="page_status_button_margin">5dp</dimen>
+	<dimen name="page_status_button_padding">5sp</dimen>
+	<dimen name="page_status_button_height">20sp</dimen>
+	<dimen name="page_status_padding_drawable">5dp</dimen>
+	<dimen name="page_status_textsize_small">12sp</dimen>
+	<dimen name="page_status_textsize">18sp</dimen>
+	<dimen name="page_status_textsize_locale">12sp</dimen>
+	<dimen name="page_status_cards_list_padding">5dp</dimen>
+	<dimen name="page_status_card_height">130sp</dimen>
+	<dimen name="page_status_icon_size">17sp</dimen>
+	<dimen name="page_status_icon_size_big">18sp</dimen>
+	<integer name="page_status_text_max_lines">5</integer>
 
 	<!--dimens of page_profile.xml-->
-	<dimen name="profile_toolbar_height">48dp</dimen>
+	<dimen name="profile_toolbar_height">@dimen/toolbar_height_small</dimen>
 	<dimen name="profile_image_size">86dp</dimen>
 	<dimen name="profile_image_padding_left">10dp</dimen>
 	<dimen name="profile_tv_background_padding">2dp</dimen>
 	<dimen name="profile_tv_margin">5dp</dimen>
 	<dimen name="profile_username_margin">12dp</dimen>
+	<dimen name="profile_icon_margin">5dp</dimen>
 	<dimen name="profile_padding_drawable">5dp</dimen>
 	<dimen name="profile_button_height">20sp</dimen>
 	<dimen name="profile_button_margin">5dp</dimen>
 	<dimen name="profile_button_background_padding">5dp</dimen>
 	<dimen name="profile_textsize_big">14sp</dimen>
 	<dimen name="profile_textsize_small">12sp</dimen>
-	<integer name="profile_text_bio_lines">3</integer>
+	<dimen name="profile_icon_size">14sp</dimen>
+	<dimen name="profile_icon_size_big">16sp</dimen>
+	<dimen name="profile_tabselector_height">52sp</dimen>
+	<integer name="profile_text_bio_lines">6</integer>
 
 	<!--dimens of page_editprofile.xml-->
 	<dimen name="editprofile_layout_margin">5dp</dimen>
 	<dimen name="editprofile_layout_padding">20dp</dimen>
 	<dimen name="editprofile_button_padding">5dp</dimen>
-	<dimen name="editprofile_button_height">20sp</dimen>
+	<dimen name="editprofile_button_margin">8dp</dimen>
+	<dimen name="editprofile_button_height">24sp</dimen>
 	<dimen name="editprofile_edittext_padding">5dp</dimen>
 	<dimen name="editprofile_bio_min_height">150dp</dimen>
 	<dimen name="editprofile_image">@dimen/profile_image_size</dimen>
-	<dimen name="editprofile_toolbar_height">@dimen/profile_toolbar_height</dimen>
+	<dimen name="editprofile_toolbar_height">@dimen/toolbar_height_small</dimen>
 	<dimen name="editprofile_add_btn_size">40dp</dimen>
 	<dimen name="editprofile_profile_image_left_margin">10dp</dimen>
 	<dimen name="editprofile_scrollview_margin">10dp</dimen>
 	<integer name="editprofile_username_max_length">50</integer>
 
-	<!--dimens of item_tweet.xml-->
-	<dimen name="tweetitem_profile_size">36sp</dimen>
-	<dimen name="tweetitem_layout_padding">5dp</dimen>
-	<dimen name="tweetitem_layout_margin">5dp</dimen>
-	<dimen name="tweetitem_text_margin">5dp</dimen>
-	<dimen name="tweetitem_drawable_margin">5dp</dimen>
-	<dimen name="tweetitem_textsize_button">12sp</dimen>
-	<dimen name="tweetitem_textsize_date">12sp</dimen>
-	<dimen name="tweetitem_icon_size">14sp</dimen>
-	<dimen name="tweetitem_indicator_size">28sp</dimen>
-	<dimen name="tweetitem_indicator_margin">3dp</dimen>
-	<dimen name="tweetitem_indicator_padding">6sp</dimen>
+	<!--dimens of item_status.xml-->
+	<dimen name="item_status_profile_size">36sp</dimen>
+	<dimen name="item_status_layout_padding">5dp</dimen>
+	<dimen name="item_status_layout_margin">3dp</dimen>
+	<dimen name="item_status_text_margin">5dp</dimen>
+	<dimen name="item_status_label_margin">8dp</dimen>
+	<dimen name="item_status_drawable_margin">5dp</dimen>
+	<dimen name="item_status_notification_button_size">20sp</dimen>
+	<dimen name="item_status_notification_button_drawable_padding">1dp</dimen>
+	<dimen name="item_status_textsize_notification">12sp</dimen>
+	<dimen name="item_status_textsize_button">12sp</dimen>
+	<dimen name="item_status_textsize_date">12sp</dimen>
+	<dimen name="item_status_icon_size">14sp</dimen>
+	<dimen name="item_status_indicator_padding">6sp</dimen>
+	<dimen name="item_status_indicator_size">26sp</dimen>
 
-	<!--dimens of item_trend.xml-->
-	<dimen name="trenditem_layout_padding">5dp</dimen>
-	<dimen name="trenditem_text_margin">5dp</dimen>
-	<dimen name="trenditem_textsize_trendindex">20sp</dimen>
-	<dimen name="trenditem_textsize_trendname">20sp</dimen>
-	<dimen name="trenditem_textsize_trendvol">14sp</dimen>
-	<dimen name="trenditem_textsize_trendindex_width">40sp</dimen>
+	<!--dimens of item_tag.xml-->
+	<dimen name="item_tag_layout_padding">5dp</dimen>
+	<dimen name="item_tag_layout_margin">5dp</dimen>
+	<dimen name="item_tag_button_size">20sp</dimen>
+	<dimen name="item_tag_button_padding">1dp</dimen>
+	<dimen name="item_tag_textsize_trendindex">20sp</dimen>
+	<dimen name="item_tag_textsize_trendname">20sp</dimen>
+	<dimen name="item_tag_textsize_trendvol">14sp</dimen>
+	<dimen name="item_tag_textsize_trendindex_width">40sp</dimen>
 
 	<!--dimens of item_user.xml-->
-	<dimen name="useritem_image_size">56sp</dimen>
-	<dimen name="useritem_layout_padding">5dp</dimen>
-	<dimen name="useritem_textview_padding">5dp</dimen>
-	<dimen name="useritem_drawable_margin">5dp</dimen>
-	<dimen name="useritem_button_size">36dp</dimen>
-	<dimen name="useritem_button_padding">7dp</dimen>
-	<dimen name="useritem_textsize_small">12sp</dimen>
-	<dimen name="useritem_icon_size">14sp</dimen>
-
-	<!--dimens of item_list.xml-->
-	<dimen name="listitem_padding">5dp</dimen>
-	<dimen name="listitem_icon_size">12sp</dimen>
-	<dimen name="listitem_icon_size_big">16sp</dimen>
-	<dimen name="listitem_profile">56sp</dimen>
-	<dimen name="listitem_text_margin">5dp</dimen>
-	<dimen name="listitem_textsize_date">12sp</dimen>
-	<dimen name="listitem_textsize_title">18sp</dimen>
-	<dimen name="listitem_textsize_name">14sp</dimen>
-	<dimen name="listitem_textsize_small">12sp</dimen>
-	<dimen name="listitem_padding_drawable">5dp</dimen>
-	<integer name="listitem_description_max_lines">6</integer>
-
-	<!--dimens of item_message.xml-->
-	<dimen name="dmitem_profile">42sp</dimen>
-	<dimen name="dmitem_button_height">20sp</dimen>
-	<dimen name="dmitem_padding_drawable">5dp</dimen>
-	<dimen name="dmitem_textsize_button">12sp</dimen>
-	<dimen name="dmitem_textsize_name">12sp</dimen>
-	<dimen name="dmitem_textsize_date">12sp</dimen>
-	<dimen name="dmitem_text_margin">5dp</dimen>
-	<dimen name="dmitem_button_margin">5dp</dimen>
-	<dimen name="dmitem_margin_layout">5dp</dimen>
-	<dimen name="dmitem_icon_size">16sp</dimen>
-	<dimen name="dmitem_button_media_width">48dp</dimen>
-	<dimen name="dmitem_button_media_height">30dp</dimen>
-	<dimen name="dmitem_button_media_margin">10dp</dimen>
+	<dimen name="item_user_image_size">56sp</dimen>
+	<dimen name="item_user_layout_padding">5dp</dimen>
+	<dimen name="item_user_layout_margin">3dp</dimen>
+	<dimen name="item_user_textview_padding">5dp</dimen>
+	<dimen name="item_user_drawable_margin">5dp</dimen>
+	<dimen name="item_user_button_size">20sp</dimen>
+	<dimen name="item_user_notification_button_size">20sp</dimen>
+	<dimen name="item_user_notification_button_drawable_padding">1dp</dimen>
+	<dimen name="item_user_button_padding">1dp</dimen>
+	<dimen name="item_user_textsize_small">12sp</dimen>
+	<dimen name="item_user_icon_size">14sp</dimen>
+	<dimen name="item_user_image_margin">8dp</dimen>
+	<dimen name="item_user_textsize_notification">12sp</dimen>
 
 	<!--dimens of item_account.xml-->
-	<dimen name="login_name_textsize_big">14sp</dimen>
 	<dimen name="login_name_textsize">12sp</dimen>
 	<dimen name="login_date_textsize">11sp</dimen>
-	<dimen name="login_layout_padding">8dp</dimen>
-	<dimen name="login_button_size">36dp</dimen>
-	<dimen name="login_button_padding">7dp</dimen>
+	<dimen name="login_card_padding">8dp</dimen>
+	<dimen name="login_layout_margin">8dp</dimen>
+	<dimen name="login_button_size">20sp</dimen>
+	<dimen name="login_button_padding">1dp</dimen>
 	<dimen name="login_image_size">64dp</dimen>
+
+	<!--dimens of item_dropdown-->
+	<dimen name="dropdown_drawable_padding">5dp</dimen>
+
+	<!--dimens of item_schedule-xml-->
+	<dimen name="item_schedule_layout_margins">3dp</dimen>
+	<dimen name="item_schedule_layout_padding">5dp</dimen>
+	<dimen name="item_schedule_textsize_date">12sp</dimen>
+	<dimen name="item_schedule_textsize_small">10sp</dimen>
+	<dimen name="item_schedule_iconlist_height">26sp</dimen>
+	<dimen name="item_schedule_button_padding">1dp</dimen>
+	<dimen name="item_schedule_button_size">20sp</dimen>
+	<dimen name="item_schedule_drawable_padding">5dp</dimen>
+	<integer name="item_schedule_text_max_lines">12</integer>
 
 	<!--dimens of page_login.xml-->
 	<dimen name="loginpage_toolbar_height">@dimen/toolbar_height</dimen>
+	<dimen name="loginpage_layout_margin">8dp</dimen>
 	<dimen name="loginpage_button_padding">24dp</dimen>
 	<dimen name="loginpage_textsize_button">14sp</dimen>
 	<dimen name="loginpage_padding_drawable">5dp</dimen>
 	<dimen name="loginpage_textsize_login_key">20sp</dimen>
-	<dimen name="loginpage_number_padding">10dp</dimen>
-	<integer name="loginpage_pin_max_chars">10</integer>
+	<dimen name="loginpage_number_margin">10dp</dimen>
 
-	<!--dimens of page_metrics.xml-->
-	<dimen name="metrics_toolbar_height">@dimen/toolbar_height</dimen>
-	<dimen name="metrics_profile">56sp</dimen>
-	<dimen name="metrics_profileimage_margin">5dp</dimen>
-	<dimen name="metrics_textview_margin">5dp</dimen>
-	<dimen name="metrics_item_margin">20dp</dimen>
-	<dimen name="metrics_padding_drawable">5dp</dimen>
-	<dimen name="metrics_padding_drawable_big">15dp</dimen>
-	<dimen name="metrics_textsize_small">12sp</dimen>
-	<dimen name="metrics_textsize_normal">18sp</dimen>
-	<dimen name="metrics_textsize_big">20sp</dimen>
-	<integer name="metrics_text_max_lines">8</integer>
+	<!--dimens of popup_status.xml-->
+	<dimen name="popup_status_margin_layout">10dp</dimen>
+	<dimen name="popup_status_button_margin">7dp</dimen>
+	<dimen name="popup_status_icon_list_margin">7dp</dimen>
+	<dimen name="popup_status_button_padding">7dp</dimen>
+	<item name="popup_status_button_width_ratio" format="float" type="dimen">0.09</item>
+	<item name="popup_status_button_width_ratio_landscape" format="float" type="dimen">0.05</item>
 
-	<!--dimens of popup_tweet.xml-->
-	<dimen name="tweetpopup_margin_layout">10dp</dimen>
-	<dimen name="tweetpopup_button_margin">7dp</dimen>
-	<dimen name="tweetpopup_button_padding">7dp</dimen>
-
-	<!--dimens of popup_dm.xml-->
-	<dimen name="dmpopup_margin_background">10dp</dimen>
-	<dimen name="dmpopup_text_margin">5dp</dimen>
-	<dimen name="dmpopup_button_margin">5dp</dimen>
-	<dimen name="dmpopup_button_padding">7dp</dimen>
-
-	<!--dimen of popup_userlist.xml-->
-	<dimen name="popup_userlist_background_margin">10dp</dimen>
-	<dimen name="popup_userlist_layout_margin">5dp</dimen>
-	<dimen name="popup_userlist_text_margin">5dp</dimen>
+	<!--dimen of item_list.xml-->
+	<dimen name="item_list_text_margin">5dp</dimen>
+	<dimen name="item_list_textsize_title">22sp</dimen>
 
 	<!--dimens of item_load.xml-->
 	<dimen name="loaditem_button_size">36sp</dimen>
 
 	<!-- dimens of item_dropdown-->
-	<dimen name="dropdown_padding">2dp</dimen>
-	<dimen name="dropdown_text_size">18sp</dimen>
+	<dimen name="dropdown_padding">4dp</dimen>
+	<dimen name="dropdown_text_size">14sp</dimen>
 
 	<!--dimens of page_media.xml-->
+	<dimen name="mediapage_toolbar_height">@dimen/toolbar_height</dimen>
 	<dimen name="mediapage_preview_margin">10dp</dimen>
 	<dimen name="mediapage_circle_size">64dp</dimen>
-	<dimen name="mediapage_controller_bottom_margin">20dp</dimen>
 
 	<!--dimens of item_placeholder.xml-->
-	<dimen name="placeholderitem_margin">8dp</dimen>
-
-	<!--dimens of item_image.xml-->
-	<dimen name="imageitem_button_margin">5dp</dimen>
-	<dimen name="imageitem_drawable_padding">7dp</dimen>
-	<dimen name="imageitem_button_size">30dp</dimen>
-	<dimen name="imageitem_layout_margin">2dp</dimen>
-
-	<!--dimens of page_search.xml-->
-	<dimen name="searchpage_toolbar_height">@dimen/toolbar_height</dimen>
+	<dimen name="item_placeholder_margin">10dp</dimen>
+	<dimen name="item_placeholder_button_textsize">16sp</dimen>
 
 	<!--dimens of page_main.xml-->
 	<dimen name="mainpage_toolbar_height">@dimen/toolbar_height</dimen>
+	<dimen name="mainpage_navigation_padding_item">20dp</dimen>
 
-	<!--dimens of page_list.xml-->
-	<dimen name="listpage_toolbar_height">@dimen/toolbar_height</dimen>
-
-	<!--dimens of page_list.xml-->
-	<dimen name="dmpage_toolbar_height">@dimen/toolbar_height</dimen>
+	<!--dimens of page_fragment.xml-->
+	<dimen name="page_fragment_toolbar_height">@dimen/toolbar_height</dimen>
 
 	<!--dimens of dialog_app_info.xml-->
 	<dimen name="infopopup_text_padding">5dp</dimen>
@@ -223,33 +201,211 @@
 	<dimen name="confirm_message_fontsize">18sp</dimen>
 	<dimen name="confirm_title_fontsize">22sp</dimen>
 	<dimen name="confirm_button_height">30sp</dimen>
-	<dimen name="confirm_checkbox_text_margin">5dp</dimen>
-	<dimen name="confirm_checkbox_text_size">10sp</dimen>
 	<integer name="confirm_message_max_ines">8</integer>
 
 	<!--dimens of dialog_userlist.xml-->
-	<dimen name="userlist_button_height">20dp</dimen>
-	<dimen name="userlist_button_padding">5dp</dimen>
-	<dimen name="userlist_title_textsize">20sp</dimen>
+	<dimen name="userlist_button_height">26dp</dimen>
+	<dimen name="userlist_button_padding">8dp</dimen>
+	<dimen name="userlist_layout_margin">5dp</dimen>
+	<dimen name="userlist_textsize_title">20sp</dimen>
+	<dimen name="userlist_textsize_label">12sp</dimen>
+	<dimen name="userlist_textsize_button">14sp</dimen>
+	<dimen name="userlist_textsize_input">16sp</dimen>
 
-	<!--dimens of tabitem.xml-->
-	<dimen name="tabitem_icon_size">22sp</dimen>
-	<dimen name="tabitem_textsize">11sp</dimen>
+	<!--dimens of dialog_connection.xml-->
+	<dimen name="dialog_connection_button_height">26sp</dimen>
+	<dimen name="dialog_connection_button_padding">5dp</dimen>
+	<dimen name="dialog_connection_layout_margin">5dp</dimen>
+	<dimen name="dialog_connection_root_padding">8dp</dimen>
+	<dimen name="dialog_connection_textsize_input">18sp</dimen>
+	<dimen name="dialog_connection_textsize_button">14sp</dimen>
+	<dimen name="dialog_connection_textsize_label">12sp</dimen>
 
-	<!--dimens of controlpanel-->
-	<dimen name="controller_seekbar_margin">10dp</dimen>
-	<dimen name="controller_text_margin">5dp</dimen>
-	<dimen name="controller_text_size">11sp</dimen>
-	<dimen name="controller_button_width">64dp</dimen>
-	<dimen name="controller_button_height">32dp</dimen>
-	<dimen name="controller_text_width">36sp</dimen>
+	<!--dimens of dialog_poll.xml-->
+	<dimen name="dialog_poll_list_height">200sp</dimen>
+	<dimen name="dialog_poll_root_layout_padding">5dp</dimen>
+	<dimen name="dialog_poll_layout_margins">3dp</dimen>
+	<dimen name="dialog_poll_textsize_small">12sp</dimen>
+	<dimen name="dialog_poll_textsize_medium">16sp</dimen>
+	<dimen name="dialog_poll_textsize_big">18sp</dimen>
+	<dimen name="dialog_poll_button_close_size">24sp</dimen>
+	<dimen name="dialog_poll_button_height">20sp</dimen>
 
-	<!--dimens of link preview-->
-	<dimen name="dialog_linkpreview_textsize_title">18sp</dimen>
-	<dimen name="dialog_linkpreview_textsize_description">14sp</dimen>
-	<dimen name="dialog_linkpreview_btn_size">32dp</dimen>
-	<dimen name="dialog_linkpreview_margin">4dp</dimen>
-	<dimen name="dialog_linkpreview_padding">5dp</dimen>
-	<integer name="dialog_description_line_count">10</integer>
+	<!--dimens of item_tab.xml-->
+	<dimen name="item_tab_icon_size">22sp</dimen>
+	<dimen name="item_tab_textsize">11sp</dimen>
+	<dimen name="item_tab_padding">5dp</dimen>
+
+	<!--dimens of item_card.xml-->
+	<dimen name="item_card_textsize">11sp</dimen>
+	<dimen name="item_card_layout_padding">5dp</dimen>
+	<dimen name="item_card_text_padding">5dp</dimen>
+	<dimen name="item_card_text_drawable_padding">5sp</dimen>
+
+	<!--dimens of item_preivew.xml-->
+	<dimen name="item_card_preivew_padding">5dp</dimen>
+
+	<!-- dimens of item_poll.xml -->
+	<dimen name="item_poll_layout_padding">5dp</dimen>
+	<dimen name="item_poll_layout_margin">3dp</dimen>
+	<dimen name="item_poll_layout_margin_label">20dp</dimen>
+	<dimen name="item_poll_text_size">12sp</dimen>
+	<dimen name="item_poll_button_height">16sp</dimen>
+	<dimen name="item_poll_drawable_padding">5dp</dimen>
+
+	<!-- dimens of item_icon.xml -->
+	<dimen name="item_icon_indicator_margin">2dp</dimen>
+
+	<!--dimens of item_rule.xml-->
+	<dimen name="item_rule_icon_size">20sp</dimen>
+	<dimen name="item_rule_margin_layout">5dp</dimen>
+
+	<!-- dimens of item_option.xml -->
+	<dimen name="item_option_icon_size">20sp</dimen>
+	<dimen name="item_option_text_size">13sp</dimen>
+	<dimen name="item_option_layout_padding">5dp</dimen>
+	<dimen name="item_option_emoji_size">13sp</dimen>
+
+	<!--dimens of item_option_edit.xml-->
+	<dimen name="item_option_edit_layout_padding">3dp</dimen>
+	<dimen name="item_option_edit_button_size">24dp</dimen>
+	<dimen name="item_option_edit_drawable_padding">2dp</dimen>
+	<dimen name="item_option_edit_layout_margin">5dp</dimen>
+
+	<!--dimens of item_status_edit.xml-->
+	<dimen name="item_status_edit_profile_image_size">36sp</dimen>
+	<dimen name="item_status_edit_padding_drawable">5dp</dimen>
+	<dimen name="item_status_edit_attachment_list_height">24dp</dimen>
+	<dimen name="item_status_edit_layout_margins">5dp</dimen>
+	<dimen name="item_status_edit_layout_padding">5dp</dimen>
+	<dimen name="item_status_edit_icon_size">14sp</dimen>
+	<dimen name="item_status_edit_textsize_small">12sp</dimen>
+	<dimen name="item_status_edit_textsize_status">15sp</dimen>
+
+	<!--dimens of dialog_status.xml-->
+	<dimen name="dialog_status_textsize_title">20sp</dimen>
+	<dimen name="dialog_status_textsize_small">11sp</dimen>
+	<dimen name="dialog_status_textsize_default">13sp</dimen>
+	<dimen name="dialog_status_layout_padding">10dp</dimen>
+	<dimen name="dialog_status_layout_margins">5dp</dimen>
+	<dimen name="dialog_status_dropdown_height">28sp</dimen>
+	<dimen name="dialog_status_button_height">28sp</dimen>
+	<dimen name="dialog_status_button_padding">5dp</dimen>
+
+	<!--dimens of dialog_audio_player.xml-->
+	<dimen name="dialog_audio_player_height">200sp</dimen>
+	<dimen name="dialog_audio_player_drawable_padding">5dp</dimen>
+	<dimen name="dialog_audio_player_layout_padding">5dp</dimen>
+	<dimen name="dialog_audio_player_layout_margin">5dp</dimen>
+
+	<!--dimens of dialog_timepicker.xml-->
+	<dimen name="dialog_timepicker_layout_margins">5dp</dimen>
+	<dimen name="dialog_timepicker_button_height">28sp</dimen>
+	<dimen name="dialog_timepicker_button_padding">5dp</dimen>
+
+	<!--dimens of item_emoji.xml-->
+	<dimen name="item_emoji_layout_margin_left_right">10dp</dimen>
+	<dimen name="item_emoji_layout_padding">5dp</dimen>
+	<dimen name="item_emoji_item_margin">5dp</dimen>
+	<dimen name="item_emoji_text_size">18sp</dimen>
+	<dimen name="item_emoji_text_margin">8dp</dimen>
+
+	<!--dimens of DescriptionView-->
+	<dimen name="descriptionview_layout_padding">5dp</dimen>
+
+	<!--dimens of item_domain.xml-->
+	<dimen name="item_domain_layout_margin">8dp</dimen>
+	<dimen name="item_domain_text_size">20sp</dimen>
+	<dimen name="item_domain_button_size">20sp</dimen>
+	<dimen name="item_domain_button_padding">1dp</dimen>
+
+	<!--dimens of item_filter.xml-->
+	<dimen name="item_filter_title_textsize">18sp</dimen>
+	<dimen name="item_filter_default_textsize">12sp</dimen>
+	<dimen name="item_filter_card_padding">5dp</dimen>
+	<dimen name="item_filter_icon_size">16sp</dimen>
+	<dimen name="item_filter_icon_margin">8dp</dimen>
+	<dimen name="item_filter_layout_margin">5dp</dimen>
+	<dimen name="item_filter_button_size">20sp</dimen>
+
+	<!--dimens of item_announcement.xml-->
+	<dimen name="item_announcement_card_padding">5dp</dimen>
+	<dimen name="item_announcement_view_margin">5dp</dimen>
+	<dimen name="item_announcement_textsize_content">14sp</dimen>
+	<dimen name="item_announcement_textsize_time">12sp</dimen>
+	<dimen name="item_announcement_icon_size">14sp</dimen>
+	<dimen name="item_announcement_icon_margin">5dp</dimen>
+
+	<!--dimens of page_instance.xml-->
+	<dimen name="page_instance_toolbar_height">@dimen/toolbar_height</dimen>
+	<dimen name="page_instance_textsize_description">14sp</dimen>
+	<dimen name="page_instance_padding_description">5dp</dimen>
+
+	<!--dimens of dialog_push.xml-->
+	<dimen name="dialog_push_title_textsize">20sp</dimen>
+	<dimen name="dialog_push_label_textsize">11sp</dimen>
+	<dimen name="dialog_push_button_height">26sp</dimen>
+	<dimen name="dialog_push_button_padding">5dp</dimen>
+	<dimen name="dialog_push_layout_margin">5dp</dimen>
+	<dimen name="dialog_push_label_margin">10sp</dimen>
+	<dimen name="dialog_push_root_padding">5dp</dimen>
+
+	<!--dimens of dialog_filter.xml-->
+	<dimen name="dialog_filter_root_padding">2dp</dimen>
+	<dimen name="dialog_filter_textsize_title">22sp</dimen>
+	<dimen name="dialog_filter_textsize_title_sub">17sp</dimen>
+	<dimen name="dialog_filter_textsize_input">15sp</dimen>
+	<dimen name="dialog_filter_textsize_label">11sp</dimen>
+	<dimen name="dialog_filter_margin_items_layout">4dp</dimen>
+	<dimen name="dialog_filter_margin_columns">8dp</dimen>
+
+	<!--dimens of dialog_report.xml-->
+	<dimen name="dialog_report_root_padding">2dp</dimen>
+	<dimen name="dialog_report_textsize_title">22sp</dimen>
+	<dimen name="dialog_report_list_height">200sp</dimen>
+	<dimen name="dialog_report_list_height_land">100sp</dimen>
+	<dimen name="dialog_report_textsize_label">12sp</dimen>
+	<dimen name="dialog_report_textsize_button">14sp</dimen>
+	<dimen name="dialog_report_margin_items_layout">4dp</dimen>
+	<dimen name="dialog_report_button_padding">5dp</dimen>
+	<dimen name="dialog_report_button_height">24sp</dimen>
+
+	<!--dimens of dialog_colorpicker.xml-->
+	<dimen name="dialog_colorpicker_margin_layout">5dp</dimen>
+	<dimen name="dialog_colorpicker_textsize_button">14sp</dimen>
+	<dimen name="dialog_colorpicker_textsize_textview">16sp</dimen>
+	<dimen name="dialog_colorpicker_height_button">24sp</dimen>
+
+	<!--dimens of dialog_description.xml-->
+	<dimen name="dialog_description_textsize_title">22sp</dimen>
+	<dimen name="dialog_description_button_padding">5dp</dimen>
+	<dimen name="dialog_description_layout_margin">5dp</dimen>
+
+	<!--dimens of item_fields.xml-->
+	<dimen name="item_field_card_padding">5dp</dimen>
+	<dimen name="item_field_layout_margin">5dp</dimen>
+	<dimen name="item_field_textsize_title">18sp</dimen>
+	<dimen name="item_field_textsize_value">14sp</dimen>
+	<dimen name="item_field_textsize_time">10sp</dimen>
+	<dimen name="item_field_icon_size">18sp</dimen>
+	<dimen name="item_field_emoji_size">16sp</dimen>
+
+	<!--dimens of dialog_meta.xml-->
+	<dimen name="dialog_meta_textsize_title">22sp</dimen>
+	<dimen name="dialog_meta_margin_layout">5dp</dimen>
+
+	<!--dimens of item_media_field.xml-->
+	<dimen name="dialog_media_field_layout_margin">5dp</dimen>
+
+	<!--dimens of item_reaction.xml-->
+	<dimen name="item_reaction_size_icon">14sp</dimen>
+	<dimen name="item_reaction_size_text">14sp</dimen>
+	<dimen name="item_reaction_margin_layout">5dp</dimen>
+
+	<!--dimens of navigation_header-xml-->
+	<dimen name="navigation_header_layout_padding">10dp</dimen>
+	<dimen name="navigation_header_layout_margin">8dp</dimen>
+	<dimen name="navigation_header_drawable_padding">5dp</dimen>
+	<dimen name="navigation_header_textsize">13sp</dimen>
 
 </resources>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="timeunits">
+		<item>Minutos</item>
+		<item>Horas</item>
+		<item>Días</item>
+	</string-array>
+
+	<string-array name="push_policy">
+		<item>todas las notificaciones</item>
+		<item>notificaciones solo de quienes siguesy</item>
+		<item>notificaciones solo de seguidores</item>
+	</string-array>
+
+	<string-array name="visibility">
+		<item>Default</item>
+		<item>Público</item>
+		<item>Privado</item>
+		<item>Directo</item>
+		<item>No listado</item>
+	</string-array>
+
+	<string-array name="scales">
+		<item>0.5 X</item>
+		<item>0.8 X</item>
+		<item>1.0 X</item>
+		<item>1.5 X</item>
+		<item>2.0 X</item>
+	</string-array>
+
+</resources>

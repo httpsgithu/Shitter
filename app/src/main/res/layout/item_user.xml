@@ -10,23 +10,69 @@
 		android:id="@+id/item_user_container"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
-		android:padding="@dimen/useritem_layout_padding"
-		android:gravity="center_vertical">
+		android:padding="@dimen/item_user_layout_padding">
+
+		<ImageView
+			android:id="@+id/item_user_label_icon"
+			android:layout_width="0dp"
+			android:layout_height="0dp"
+			android:visibility="gone"
+			app:layout_constraintStart_toStartOf="parent"
+			app:layout_constraintTop_toTopOf="@id/item_user_label"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_label"
+			app:layout_constraintDimensionRatio="1.0"
+			tools:ignore="ContentDescription" />
+
+		<TextView
+			android:id="@+id/item_user_label"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:lines="1"
+			android:textSize="@dimen/item_user_textsize_notification"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
+			android:layout_marginBottom="@dimen/item_user_image_margin"
+			android:layout_marginEnd="@dimen/item_user_drawable_margin"
+			android:visibility="gone"
+			app:layout_constraintStart_toEndOf="@id/item_user_label_icon"
+			app:layout_constraintTop_toTopOf="parent"
+			app:layout_constraintBottom_toTopOf="@id/item_user_notification_barrier"
+			app:layout_constraintEnd_toStartOf="@id/item_user_notification_dismiss" />
+
+		<ImageButton
+			android:id="@+id/item_user_notification_dismiss"
+			android:layout_width="@dimen/item_user_notification_button_size"
+			android:layout_height="@dimen/item_user_notification_button_size"
+			android:padding="@dimen/item_user_notification_button_drawable_padding"
+			android:visibility="gone"
+			android:src="@drawable/cross"
+			android:scaleType="fitCenter"
+			android:contentDescription="@string/notification_dismiss"
+			app:layout_constraintDimensionRatio="1"
+			app:layout_constraintTop_toTopOf="@id/item_user_label"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_label"
+			app:layout_constraintEnd_toEndOf="parent"
+			style="@style/FeedbackButton" />
+
+		<androidx.constraintlayout.widget.Barrier
+			android:id="@+id/item_user_notification_barrier"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:barrierDirection="top"
+			app:constraint_referenced_ids="item_user_profile,item_user_verified, item_user_username" />
 
 		<ImageView
 			android:id="@+id/item_user_profile"
-			android:layout_width="@dimen/useritem_image_size"
-			android:layout_height="@dimen/useritem_image_size"
+			android:layout_width="@dimen/item_user_image_size"
+			android:layout_height="@dimen/item_user_image_size"
 			android:contentDescription="@string/profile_image"
 			app:layout_constraintStart_toStartOf="parent"
-			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintBottom_toBottomOf="parent" />
+			app:layout_constraintTop_toBottomOf="@id/item_user_notification_barrier" />
 
 		<ImageView
 			android:id="@+id/item_user_verified"
-			android:layout_width="@dimen/useritem_icon_size"
-			android:layout_height="@dimen/useritem_icon_size"
-			android:layout_marginStart="@dimen/useritem_drawable_margin"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
 			android:src="@drawable/verify"
 			app:layout_constraintStart_toEndOf="@id/item_user_profile"
 			app:layout_constraintTop_toTopOf="@id/item_user_username"
@@ -38,49 +84,72 @@
 			android:id="@+id/item_user_username"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:drawablePadding="@dimen/useritem_drawable_margin"
-			android:layout_marginStart="@dimen/useritem_textview_padding"
-			android:layout_marginEnd="@dimen/useritem_textview_padding"
-			android:singleLine="true"
+			android:drawablePadding="@dimen/item_user_drawable_margin"
+			android:layout_marginStart="@dimen/item_user_textview_padding"
+			android:layout_marginEnd="@dimen/item_user_textview_padding"
+			android:lines="1"
 			app:layout_constraintStart_toEndOf="@id/item_user_verified"
-			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintEnd_toStartOf="@id/item_user_delete_buton" />
+			app:layout_constraintTop_toTopOf="@id/item_user_profile"
+			app:layout_constraintBottom_toTopOf="@id/item_user_screenname"
+			app:layout_constraintEnd_toStartOf="@id/item_user_delete_button" />
 
 		<ImageView
 			android:id="@+id/item_user_private"
-			android:layout_width="@dimen/useritem_icon_size"
-			android:layout_height="@dimen/useritem_icon_size"
-			android:layout_marginStart="@dimen/useritem_drawable_margin"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
 			android:src="@drawable/lock"
 			app:layout_constraintStart_toEndOf="@id/item_user_profile"
 			app:layout_constraintTop_toTopOf="@id/item_user_screenname"
 			app:layout_constraintBottom_toBottomOf="@id/item_user_screenname"
-			app:layout_constraintEnd_toEndOf="@id/item_user_screenname"
-			app:layout_constraintHorizontal_bias="0.0"
+			tools:ignore="ContentDescription" />
+
+		<ImageView
+			android:id="@+id/item_user_bot"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
+			android:src="@drawable/bot"
+			app:layout_constraintStart_toEndOf="@id/item_user_private"
+			app:layout_constraintTop_toTopOf="@id/item_user_screenname"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_screenname"
+			tools:ignore="ContentDescription" />
+
+		<ImageView
+			android:id="@+id/item_user_group"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
+			android:src="@drawable/group"
+			app:layout_constraintStart_toEndOf="@id/item_user_bot"
+			app:layout_constraintTop_toTopOf="@id/item_user_screenname"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_screenname"
 			tools:ignore="ContentDescription" />
 
 		<TextView
 			android:id="@+id/item_user_screenname"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:drawablePadding="@dimen/useritem_drawable_margin"
-			android:layout_marginStart="@dimen/useritem_textview_padding"
-			android:layout_marginEnd="@dimen/useritem_textview_padding"
-			android:singleLine="true"
-			app:layout_constraintStart_toEndOf="@id/item_user_private"
+			android:drawablePadding="@dimen/item_user_drawable_margin"
+			android:layout_marginStart="@dimen/item_user_textview_padding"
+			android:layout_marginTop="@dimen/item_user_layout_margin"
+			android:layout_marginEnd="@dimen/item_user_textview_padding"
+			android:lines="1"
+			app:layout_constraintStart_toEndOf="@id/item_user_group"
 			app:layout_constraintTop_toBottomOf="@id/item_user_username"
-			app:layout_constraintEnd_toStartOf="@id/item_user_delete_buton" />
+			app:layout_constraintBottom_toTopOf="@id/item_user_following_icon"
+			app:layout_constraintEnd_toStartOf="@id/item_user_delete_button" />
 
 		<ImageView
 			android:id="@+id/item_user_following_icon"
-			android:layout_width="@dimen/useritem_icon_size"
-			android:layout_height="@dimen/useritem_icon_size"
-			android:layout_marginStart="@dimen/useritem_drawable_margin"
-			android:layout_marginEnd="@dimen/useritem_drawable_margin"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
+			android:layout_marginEnd="@dimen/item_user_drawable_margin"
 			android:src="@drawable/following"
 			app:layout_constraintStart_toEndOf="@id/item_user_profile"
-			app:layout_constraintTop_toBottomOf="@id/item_user_screenname"
-			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintTop_toTopOf="@id/item_user_following_count"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_following_count"
 			app:layout_constraintEnd_toStartOf="@id/item_user_following_count"
 			tools:ignore="ContentDescription" />
 
@@ -88,24 +157,25 @@
 			android:id="@+id/item_user_following_count"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:drawablePadding="@dimen/useritem_drawable_margin"
-			android:singleLine="true"
-			android:textSize="@dimen/useritem_textsize_small"
+			android:layout_marginTop="@dimen/item_user_layout_margin"
+			android:drawablePadding="@dimen/item_user_drawable_margin"
+			android:lines="1"
+			android:textSize="@dimen/item_user_textsize_small"
 			app:layout_constraintStart_toEndOf="@id/item_user_following_icon"
-			app:layout_constraintTop_toTopOf="@id/item_user_following_icon"
-			app:layout_constraintBottom_toBottomOf="@id/item_user_following_icon"
+			app:layout_constraintTop_toBottomOf="@id/item_user_screenname"
+			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintEnd_toStartOf="@id/item_user_follower_icon" />
 
 		<ImageView
 			android:id="@+id/item_user_follower_icon"
-			android:layout_width="@dimen/useritem_icon_size"
-			android:layout_height="@dimen/useritem_icon_size"
-			android:layout_marginStart="@dimen/useritem_drawable_margin"
-			android:layout_marginEnd="@dimen/useritem_drawable_margin"
+			android:layout_width="@dimen/item_user_icon_size"
+			android:layout_height="@dimen/item_user_icon_size"
+			android:layout_marginStart="@dimen/item_user_drawable_margin"
+			android:layout_marginEnd="@dimen/item_user_drawable_margin"
 			android:src="@drawable/follower"
 			app:layout_constraintStart_toEndOf="@id/item_user_following_count"
-			app:layout_constraintTop_toBottomOf="@id/item_user_screenname"
-			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintTop_toTopOf="@id/item_user_follower_count"
+			app:layout_constraintBottom_toBottomOf="@id/item_user_follower_count"
 			app:layout_constraintEnd_toStartOf="@id/item_user_follower_count"
 			tools:ignore="ContentDescription" />
 
@@ -113,26 +183,26 @@
 			android:id="@+id/item_user_follower_count"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:drawablePadding="@dimen/useritem_drawable_margin"
-			android:layout_marginEnd="@dimen/useritem_textview_padding"
-			android:singleLine="true"
-			android:textSize="@dimen/useritem_textsize_small"
+			android:layout_marginTop="@dimen/item_user_layout_margin"
+			android:drawablePadding="@dimen/item_user_drawable_margin"
+			android:layout_marginEnd="@dimen/item_user_textview_padding"
+			android:lines="1"
+			android:textSize="@dimen/item_user_textsize_small"
 			app:layout_constraintStart_toEndOf="@id/item_user_follower_icon"
-			app:layout_constraintTop_toTopOf="@id/item_user_follower_icon"
-			app:layout_constraintBottom_toBottomOf="@id/item_user_follower_icon"
-			app:layout_constraintEnd_toStartOf="@id/item_user_delete_buton" />
+			app:layout_constraintTop_toBottomOf="@id/item_user_screenname"
+			app:layout_constraintBottom_toBottomOf="parent"
+			app:layout_constraintEnd_toStartOf="@id/item_user_delete_button" />
 
 		<ImageButton
-			android:id="@+id/item_user_delete_buton"
-			android:layout_width="@dimen/useritem_button_size"
-			android:layout_height="@dimen/useritem_button_size"
+			android:id="@+id/item_user_delete_button"
+			android:layout_width="@dimen/item_user_button_size"
+			android:layout_height="@dimen/item_user_button_size"
 			android:visibility="invisible"
-			android:padding="@dimen/useritem_button_padding"
+			android:padding="@dimen/item_user_button_padding"
 			android:contentDescription="@string/descr_remove_user"
 			android:scaleType="fitCenter"
 			android:src="@drawable/cross"
 			app:layout_constraintTop_toTopOf="parent"
-			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
 			style="@style/RoundButton" />
 

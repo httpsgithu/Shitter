@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+	<item
+		android:id="@+id/menu_status_browser"
+		android:title="@string/menu_status_open_browser" />
+
+	<item
+		android:id="@+id/menu_status_copy"
+		android:title="@android:string/copy">
+
+		<menu>
+			<item
+				android:id="@+id/menu_status_copy_text"
+				android:title="@string/menu_status_copy_text" />
+
+			<item
+				android:id="@+id/menu_status_copy_link"
+				android:title="@string/menu_status_copy_link" />
+		</menu>
+	</item>
+
+	<item
+		android:id="@+id/menu_status_bookmark"
+		android:title="@string/menu_bookmark_add" />
+
+	<item
+		android:id="@+id/menu_status_pin"
+		android:title="@string/menu_status_pin"
+		android:visible="false" />
+
+	<item
+		android:id="@+id/menu_status_hide"
+		android:title="@string/menu_status_hide"
+		android:visible="false" />
+
+	<item
+		android:id="@+id/menu_status_edit"
+		android:title="@string/menu_status_edit"
+		android:visible="false" />
+
+	<item
+		android:id="@+id/menu_status_history"
+		android:title="@string/menu_status_history"
+		android:visible="false" />
+
+	<item
+		android:id="@+id/menu_status_delete"
+		android:title="@string/menu_status_delete"
+		android:visible="false" />
+
+	<item
+		android:id="@+id/menu_status_report"
+		android:title="@string/menu_status_report"
+		android:visible="false" />
+</menu>

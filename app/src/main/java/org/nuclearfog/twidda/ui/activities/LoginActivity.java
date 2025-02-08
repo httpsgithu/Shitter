@@ -1,50 +1,54 @@
 package org.nuclearfog.twidda.ui.activities;
 
-import static android.content.Intent.ACTION_VIEW;
-import static android.os.AsyncTask.Status.RUNNING;
-import static android.widget.Toast.LENGTH_LONG;
-import static android.widget.Toast.LENGTH_SHORT;
-import static org.nuclearfog.twidda.ui.activities.AccountActivity.KEY_DISABLE_SELECTOR;
-
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import org.nuclearfog.twidda.R;
-import org.nuclearfog.twidda.backend.api.Twitter;
+import org.nuclearfog.twidda.backend.async.AsyncExecutor.AsyncCallback;
 import org.nuclearfog.twidda.backend.async.LoginAction;
+import org.nuclearfog.twidda.backend.helper.ConnectionResult;
+import org.nuclearfog.twidda.backend.helper.update.ConnectionUpdate;
 import org.nuclearfog.twidda.backend.utils.AppStyles;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler.TwitterError;
-import org.nuclearfog.twidda.database.GlobalSettings;
+import org.nuclearfog.twidda.backend.utils.ErrorUtils;
+import org.nuclearfog.twidda.backend.utils.LinkUtils;
+import org.nuclearfog.twidda.config.Configuration;
+import org.nuclearfog.twidda.config.GlobalSettings;
+import org.nuclearfog.twidda.ui.adapter.listview.DropdownAdapter;
+import org.nuclearfog.twidda.ui.dialogs.ConnectionDialog;
+import org.nuclearfog.twidda.ui.dialogs.ConnectionDialog.OnConnectionSetListener;
+
+import java.io.Serializable;
 
 /**
  * Account Activity of the App
- * called from {@link MainActivity} when this app isn't logged in to twitter
+ * called from {@link MainActivity} when this app isn't logged in
  *
  * @author nuclearfog
  */
-public class LoginActivity extends AppCompatActivity implements OnClickListener {
-
-	/**
-	 * request code to open {@link AccountActivity}
-	 */
-	private static final int REQUEST_ACCOUNT_SELECT = 0x384F;
+public class LoginActivity extends AppCompatActivity implements ActivityResultCallback<ActivityResult>, AsyncCallback<LoginAction.Result>,
+		OnClickListener, OnItemSelectedListener, OnConnectionSetListener {
 
 	/**
 	 * return code to notify if a login process was successful
@@ -52,17 +56,47 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener 
 	public static final int RETURN_LOGIN_SUCCESSFUL = 0x145;
 
 	/**
+	 * return code to notify if a login process was successful
+	 */
+	public static final int RETURN_LOGIN_CANCELED = 0x2485;
+
+	/**
 	 * return code to notify if settings may changed
 	 */
 	public static final int RETURN_SETTINGS_CHANGED = 0x227;
 
-	private LoginAction registerAsync;
+	/**
+	 * key to return login information to parent activity
+	 * value type is {@link org.nuclearfog.twidda.model.Account}
+	 */
+	public static final String RETURN_ACCOUNT = "account-data";
+
+	/**
+	 * dropdown selection index of Mastodon
+	 *
+	 * @see R.array .networks
+	 */
+	private static final int IDX_MASTODON = 0;
+
+	/**
+	 * key used to save connection configuration
+	 */
+	private static final String KEY_SAVE = "connection_save";
+
+	private ActivityResultLauncher<Intent> activityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this);
+
+	private LoginAction loginAsync;
 	private GlobalSettings settings;
+	private DropdownAdapter adapter;
 
 	private EditText pinInput;
+	private Spinner hostSelector;
 	private ViewGroup root;
 
-	private String requestToken;
+	@Nullable
+	private ConnectionResult connectionResult;
+	private ConnectionUpdate connection = new ConnectionUpdate();
+
 
 	@Override
 	protected void attachBaseContext(Context newBase) {
@@ -71,37 +105,64 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener 
 
 
 	@Override
-	protected void onCreate(@Nullable Bundle b) {
-		super.onCreate(b);
+	protected void onCreate(@Nullable Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
 		setContentView(R.layout.page_login);
 		Toolbar toolbar = findViewById(R.id.login_toolbar);
 		Button linkButton = findViewById(R.id.login_get_link);
 		Button loginButton = findViewById(R.id.login_verifier);
+		ImageView settingsButton = findViewById(R.id.login_network_settings);
+		hostSelector = findViewById(R.id.login_network_selector);
 		root = findViewById(R.id.login_root);
-		pinInput = findViewById(R.id.login_enter_pin);
+		pinInput = findViewById(R.id.login_enter_code);
 
-		settings = GlobalSettings.getInstance(this);
+		settings = GlobalSettings.get(this);
 		toolbar.setTitle(R.string.login_info);
 		setSupportActionBar(toolbar);
-		pinInput.setCompoundDrawablesWithIntrinsicBounds(R.drawable.key, 0, 0, 0);
-		setResult(RESULT_CANCELED);
+		AppStyles.setTheme(root);
 
+		adapter = new DropdownAdapter(this);
+		loginAsync = new LoginAction(this);
+
+		adapter.setItems(R.array.networks);
+		hostSelector.setAdapter(adapter);
+		if (savedInstanceState != null) {
+			Serializable data = savedInstanceState.getSerializable(KEY_SAVE);
+			if (data instanceof ConnectionUpdate) {
+				connection = (ConnectionUpdate) data;
+			}
+		}
+		switch (settings.getLogin().getConfiguration()) {
+			default:
+			case MASTODON:
+				hostSelector.setSelection(0);
+				break;
+		}
 		linkButton.setOnClickListener(this);
 		loginButton.setOnClickListener(this);
+		settingsButton.setOnClickListener(this);
+		hostSelector.setOnItemSelectedListener(this);
 	}
 
 
 	@Override
-	protected void onStart() {
-		super.onStart();
-		AppStyles.setTheme(root, settings.getBackgroundColor());
+	protected void onSaveInstanceState(@NonNull Bundle outState) {
+		outState.putSerializable(KEY_SAVE, connection);
+		super.onSaveInstanceState(outState);
+	}
+
+
+	@Override
+	public void onBackPressed() {
+		// set default result code
+		setResult(RETURN_LOGIN_CANCELED);
+		super.onBackPressed();
 	}
 
 
 	@Override
 	protected void onDestroy() {
-		if (registerAsync != null && registerAsync.getStatus() == RUNNING)
-			registerAsync.cancel(true);
+		loginAsync.cancel();
 		super.onDestroy();
 	}
 
@@ -111,7 +172,7 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener 
 		getMenuInflater().inflate(R.menu.login, m);
 		AppStyles.setMenuIconColor(m, settings.getIconColor());
 		m.findItem(R.id.login_select_account).setVisible(!settings.isLoggedIn());
-		return super.onCreateOptionsMenu(m);
+		return true;
 	}
 
 
@@ -119,103 +180,143 @@ public class LoginActivity extends AppCompatActivity implements OnClickListener 
 	public boolean onOptionsItemSelected(@NonNull MenuItem item) {
 		// open settings page
 		if (item.getItemId() == R.id.login_setting) {
-			Intent settings = new Intent(this, SettingsActivity.class);
-			startActivity(settings);
-			// notify MainActivity that settings will change maybe
+			Intent intent = new Intent(this, SettingsActivity.class);
+			activityResultLauncher.launch(intent);
+			// notify MainActivity that settings may changed
 			setResult(RETURN_SETTINGS_CHANGED);
+			return true;
 		}
 		// open account selector
 		else if (item.getItemId() == R.id.login_select_account) {
 			Intent accountManager = new Intent(this, AccountActivity.class);
-			accountManager.putExtra(KEY_DISABLE_SELECTOR, true);
-			startActivityForResult(accountManager, REQUEST_ACCOUNT_SELECT);
+			accountManager.putExtra(AccountActivity.KEY_DISABLE_SELECTOR, true);
+			activityResultLauncher.launch(accountManager);
+			return true;
 		}
-		return super.onOptionsItemSelected(item);
+		return false;
 	}
 
 
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-		super.onActivityResult(requestCode, resultCode, data);
-		if (requestCode == REQUEST_ACCOUNT_SELECT && resultCode == AccountActivity.RETURN_ACCOUNT_CHANGED) {
-			// account selected, return to MainActivity
-			onSuccess();
+	public void onActivityResult(ActivityResult result) {
+		switch (result.getResultCode()) {
+			case AccountActivity.RETURN_ACCOUNT_CHANGED:
+				// account selected, return to MainActivity
+				Intent intent = new Intent();
+				if (result.getData() != null) {
+					// delegate login information
+					intent.putExtra(RETURN_ACCOUNT, result.getData().getSerializableExtra(AccountActivity.RETURN_ACCOUNT));
+				}
+				setResult(RETURN_LOGIN_SUCCESSFUL, intent);
+				finish();
+				break;
+
+			case SettingsActivity.RETURN_SETTINGS_CHANGED:
+				setResult(RETURN_SETTINGS_CHANGED);
+				AppStyles.setTheme(root);
+				adapter.notifyDataSetChanged();
+				break;
 		}
 	}
 
 
 	@Override
 	public void onClick(View v) {
+		if (!loginAsync.isIdle()) {
+			return;
+		}
 		// get login request token
 		if (v.getId() == R.id.login_get_link) {
-			if (requestToken == null) {
-				if (registerAsync == null || registerAsync.getStatus() != RUNNING) {
-					Toast.makeText(this, R.string.info_fetching_link, LENGTH_LONG).show();
-					registerAsync = new LoginAction(this);
-					registerAsync.execute();
-				}
-			} else {
-				// re-use request token
-				connect();
+			// generate Mastodon login
+			if (hostSelector.getSelectedItemPosition() == IDX_MASTODON) {
+				Toast.makeText(getApplicationContext(), R.string.info_open_mastodon_login, Toast.LENGTH_LONG).show();
+				LoginAction.Param param = new LoginAction.Param(LoginAction.Param.REQUEST, connection.getApiType(), connection, "");
+				loginAsync.execute(param, this);
 			}
 		}
 		// verify login credentials
 		else if (v.getId() == R.id.login_verifier) {
+			String code = pinInput.getText().toString();
 			// check if user clicked on PIN button
-			if (requestToken == null) {
-				Toast.makeText(this, R.string.info_get_link, LENGTH_LONG).show();
+			if (connectionResult == null) {
+				Toast.makeText(getApplicationContext(), R.string.info_get_link, Toast.LENGTH_LONG).show();
+			} else if (code.isEmpty()) {
+				pinInput.setError(getString(R.string.error_enter_code));
 			}
-			// check if PIN exists
-			else if (pinInput.length() == 0) {
-				Toast.makeText(this, R.string.error_enter_pin, LENGTH_LONG).show();
+			// login to mastodon
+			else if (hostSelector.getSelectedItemPosition() == IDX_MASTODON) {
+				Toast.makeText(getApplicationContext(), R.string.info_login_to_mastodon, Toast.LENGTH_LONG).show();
+				LoginAction.Param param = new LoginAction.Param(LoginAction.Param.LOGIN, connection.getApiType(), connection, code);
+				loginAsync.execute(param, this);
 			}
-			//
-			else if (registerAsync == null || registerAsync.getStatus() != RUNNING) {
-				if (pinInput.getText() != null && pinInput.length() > 0) {
-					Toast.makeText(this, R.string.info_login_to_twitter, LENGTH_LONG).show();
-					String twitterPin = pinInput.getText().toString();
-					registerAsync = new LoginAction(this);
-					registerAsync.execute(requestToken, twitterPin);
+		}
+		// open API settings dialog
+		else if (v.getId() == R.id.login_network_settings) {
+			if (hostSelector.getSelectedItemPosition() == IDX_MASTODON) {
+				ConnectionDialog.show(this, connection);
+			}
+			reset();
+		}
+	}
+
+
+	@Override
+	public void onConnecionSet(ConnectionUpdate connectionUpdate) {
+		this.connection = connectionUpdate;
+	}
+
+
+	@Override
+	public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+		// "Mastodon" selected
+		if (position == IDX_MASTODON) {
+			connection.setApiType(Configuration.MASTODON);
+		}
+		reset();
+	}
+
+
+	@Override
+	public void onNothingSelected(AdapterView<?> parent) {
+	}
+
+
+	@Override
+	public void onResult(@NonNull LoginAction.Result result) {
+		switch (result.action) {
+			case LoginAction.Result.MODE_LOGIN:
+				Intent intent = new Intent();
+				intent.putExtra(RETURN_ACCOUNT, result.account);
+				setResult(RETURN_LOGIN_SUCCESSFUL, intent);
+				finish();
+				break;
+
+			case LoginAction.Result.MODE_REQUEST:
+				connectionResult = result.connection;
+				if (connectionResult != null) {
+					connection.setConnection(connectionResult);
+					connect(connectionResult.getAuthorizationUrl());
 				}
-			}
+				break;
+
+			case LoginAction.Result.MODE_ERROR:
+				ErrorUtils.showErrorMessage(getApplicationContext(), result.exception);
+				break;
 		}
 	}
 
 	/**
-	 * Called when the app is registered successfully to twitter
+	 * open login page
 	 */
-	public void onSuccess() {
-		setResult(RETURN_LOGIN_SUCCESSFUL);
-		finish();
+	private void connect(String loginLink) {
+		LinkUtils.redirectToBrowser(this, loginLink);
 	}
 
 	/**
-	 * called when an error occurs while login
-	 *
-	 * @param error Twitter exception
+	 * reset connection information
 	 */
-	public void onError(@Nullable TwitterError error) {
-		ErrorHandler.handleFailure(this, error);
-	}
-
-	/**
-	 * Called when a twitter login link was created
-	 *
-	 * @param requestToken temporary request token
-	 */
-	public void connect(String requestToken) {
-		this.requestToken = requestToken;
-		connect();
-	}
-
-
-	private void connect() {
-		String link = Twitter.AUTHENTICATE + "?oauth_token=" + requestToken;
-		Intent loginIntent = new Intent(ACTION_VIEW, Uri.parse(link));
-		try {
-			startActivity(loginIntent);
-		} catch (ActivityNotFoundException err) {
-			Toast.makeText(this, R.string.error_open_link, LENGTH_SHORT).show();
-		}
+	private void reset() {
+		connection.setConnection(null);
+		connectionResult = null;
 	}
 }

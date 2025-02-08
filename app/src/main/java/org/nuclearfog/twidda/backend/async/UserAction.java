@@ -1,187 +1,141 @@
 package org.nuclearfog.twidda.backend.async;
 
-import android.os.AsyncTask;
+import android.content.Context;
 
-import org.nuclearfog.twidda.backend.api.Twitter;
-import org.nuclearfog.twidda.backend.api.TwitterException;
-import org.nuclearfog.twidda.backend.utils.ErrorHandler;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import org.nuclearfog.twidda.backend.api.Connection;
+import org.nuclearfog.twidda.backend.api.ConnectionException;
+import org.nuclearfog.twidda.backend.api.ConnectionManager;
 import org.nuclearfog.twidda.database.AppDatabase;
-import org.nuclearfog.twidda.database.FilterDatabase;
 import org.nuclearfog.twidda.model.Relation;
-import org.nuclearfog.twidda.model.User;
 import org.nuclearfog.twidda.ui.activities.ProfileActivity;
 
-import java.lang.ref.WeakReference;
-
 /**
- * This background task loads profile information about a twitter user and take actions
+ * Ascync loader to load/update user relationships
  *
  * @author nuclearfog
  * @see ProfileActivity
  */
-public class UserAction extends AsyncTask<Void, User, Relation> {
+public class UserAction extends AsyncExecutor<UserAction.Param, UserAction.Result> {
+
+	private Connection connection;
+	private AppDatabase db;
 
 	/**
-	 * Load profile information
+	 *
 	 */
-	public static final int PROFILE_lOAD = 1;
-
-	/**
-	 * load profile from database first
-	 */
-	public static final int PROFILE_DB = 2;
-
-	/**
-	 * follow user
-	 */
-	public static final int ACTION_FOLLOW = 3;
-
-	/**
-	 * un-follow user
-	 */
-	public static final int ACTION_UNFOLLOW = 4;
-
-	/**
-	 * block user
-	 */
-	public static final int ACTION_BLOCK = 5;
-
-	/**
-	 * un-block user
-	 */
-	public static final int ACTION_UNBLOCK = 6;
-
-	/**
-	 * mute user
-	 */
-	public static final int ACTION_MUTE = 7;
-
-	/**
-	 * un-mute user
-	 */
-	public static final int ACTION_UNMUTE = 8;
-
-
-	private ErrorHandler.TwitterError twException;
-	private WeakReference<ProfileActivity> weakRef;
-	private Twitter twitter;
-	private FilterDatabase filterDatabase;
-	private AppDatabase appDB;
-	private long userId;
-	private int action;
-
-	/**
-	 * @param activity Callback to return the result
-	 * @param userId   ID of the twitter user
-	 */
-	public UserAction(ProfileActivity activity, int action, long userId) {
-		super();
-		this.weakRef = new WeakReference<>(activity);
-		twitter = Twitter.get(activity);
-		filterDatabase = new FilterDatabase(activity);
-		appDB = new AppDatabase(activity);
-		this.userId = userId;
-		this.action = action;
+	public UserAction(Context context) {
+		connection = ConnectionManager.getDefaultConnection(context);
+		db = new AppDatabase(context);
 	}
 
 
 	@Override
-	protected Relation doInBackground(Void... v) {
+	protected Result doInBackground(@NonNull Param param) {
 		try {
-			switch (action) {
-				case PROFILE_DB:
-					// load user information from database
-					User user;
-					if (userId > 0) {
-						user = appDB.getUser(userId);
-						if (user != null) {
-							publishProgress(user);
-						}
-					}
+			switch (param.action) {
+				case Param.LOAD:
+					Relation relation = connection.getUserRelationship(param.id);
+					return new Result(Result.LOAD, relation, null);
 
-				case PROFILE_lOAD:
-					// load user information from twitter
-					user = twitter.showUser(userId);
-					publishProgress(user);
-					appDB.storeUser(user);
-					// load user relations from twitter
-					Relation relation = twitter.getRelationToUser(userId);
-					if (!relation.isHome()) {
-						boolean muteUser = relation.isBlocked() || relation.isMuted();
-						appDB.muteUser(userId, muteUser);
-					}
-					return relation;
+				case Param.FOLLOW:
+					relation = connection.followUser(param.id);
+					return new Result(Result.FOLLOW, relation, null);
 
-				case ACTION_FOLLOW:
-					user = twitter.followUser(userId);
-					publishProgress(user);
-					break;
+				case Param.UNFOLLOW:
+					relation = connection.unfollowUser(param.id);
+					return new Result(Result.UNFOLLOW, relation, null);
 
-				case ACTION_UNFOLLOW:
-					user = twitter.unfollowUser(userId);
-					publishProgress(user);
-					break;
+				case Param.BLOCK:
+					relation = connection.blockUser(param.id);
+					db.muteUser(param.id, true);
+					return new Result(Result.BLOCK, relation, null);
 
-				case ACTION_BLOCK:
-					user = twitter.blockUser(userId);
-					publishProgress(user);
-					appDB.muteUser(userId, true);
-					break;
-
-				case ACTION_UNBLOCK:
-					user = twitter.unblockUser(userId);
-					publishProgress(user);
+				case Param.UNBLOCK:
+					relation = connection.unblockUser(param.id);
 					// remove from exclude list only if user is not muted
-					relation = twitter.getRelationToUser(userId);
 					if (!relation.isMuted()) {
-						appDB.muteUser(userId, false);
-						filterDatabase.removeUser(userId);
+						db.muteUser(param.id, false);
 					}
-					return relation;
+					return new Result(Result.UNBLOCK, relation, null);
 
-				case ACTION_MUTE:
-					user = twitter.muteUser(userId);
-					publishProgress(user);
-					appDB.muteUser(userId, true);
-					break;
+				case Param.MUTE:
+					relation = connection.muteUser(param.id);
+					db.muteUser(param.id, true);
+					return new Result(Result.MUTE, relation, null);
 
-				case ACTION_UNMUTE:
-					user = twitter.unmuteUser(userId);
-					publishProgress(user);
+				case Param.UNMUTE:
+					relation = connection.unmuteUser(param.id);
 					// remove from exclude list only if user is not blocked
-					relation = twitter.getRelationToUser(userId);
 					if (!relation.isBlocked()) {
-						appDB.muteUser(userId, false);
-						filterDatabase.removeUser(userId);
+						db.muteUser(param.id, false);
 					}
-					return relation;
+					return new Result(Result.UNMUTE, relation, null);
+
+				default:
+					return null;
 			}
-			return twitter.getRelationToUser(userId);
-		} catch (TwitterException twException) {
-			this.twException = twException;
-		}
-		return null;
-	}
-
-
-	@Override
-	protected void onProgressUpdate(User[] users) {
-		ProfileActivity activity = weakRef.get();
-		if (activity != null) {
-			activity.setUser(users[0]);
+		} catch (ConnectionException exception) {
+			return new Result(Result.ERROR, null, exception);
 		}
 	}
 
+	/**
+	 *
+	 */
+	public static class Param {
 
-	@Override
-	protected void onPostExecute(Relation relation) {
-		ProfileActivity activity = weakRef.get();
-		if (activity != null) {
-			if (relation != null) {
-				activity.onAction(relation);
-			} else {
-				activity.onError(twException);
-			}
+		public static final int LOAD = 1;
+		public static final int FOLLOW = 2;
+		public static final int UNFOLLOW = 3;
+		public static final int BLOCK = 4;
+		public static final int UNBLOCK = 5;
+		public static final int MUTE = 6;
+		public static final int UNMUTE = 7;
+
+		final long id;
+		final int action;
+
+		/**
+		 * @param id     user ID
+		 * @param action action to perform on the user {@link #FOLLOW,#UNFOLLOW,#BLOCK,#UNBLOCK,#MUTE,#UNMUTE}
+		 */
+		public Param(long id, int action) {
+			this.id = id;
+			this.action = action;
+		}
+	}
+
+	/**
+	 *
+	 */
+	public static class Result {
+
+		public static final int LOAD = 8;
+		public static final int FOLLOW = 9;
+		public static final int UNFOLLOW = 10;
+		public static final int BLOCK = 11;
+		public static final int UNBLOCK = 12;
+		public static final int MUTE = 13;
+		public static final int UNMUTE = 14;
+		public static final int ERROR = -1;
+
+		public final int action;
+		@Nullable
+		public final Relation relation;
+		@Nullable
+		public final ConnectionException exception;
+
+		/**
+		 * @param action   action performed on user
+		 * @param relation updated relationship
+		 */
+		Result(int action, @Nullable Relation relation, @Nullable ConnectionException exception) {
+			this.relation = relation;
+			this.exception = exception;
+			this.action = action;
 		}
 	}
 }
